@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islamic AI Agent - Noor | TheIslamInsights.com</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-mosque"></i>
+                    <h1>Islamic AI Agent</h1>
+                    <span class="agent-name">Noor</span>
+                </div>
+                <div class="header-info">
+                    <div class="hijri-date" id="hijriDate">Loading...</div>
+                    <div class="prayer-indicator" id="prayerIndicator">
+                        <i class="fas fa-clock"></i>
+                        <span>Next Prayer</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fas fa-tools"></i> Islamic Tools</h3>
+            </div>
+            
+            <div class="tool-categories">
+                <!-- Quran Tools -->
+                <div class="tool-category">
+                    <h4><i class="fas fa-book-quran"></i> Quran</h4>
+                    <div class="tool-buttons">
+                        <button class="tool-btn" onclick="showQuranModal()">
+                            <i class="fas fa-search"></i> Get Verse
+                        </button>
+                        <button class="tool-btn" onclick="searchContent('quran')">
+                            <i class="fas fa-magnifying-glass"></i> Search Quran
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hadith Tools -->
+                <div class="tool-category">
+                    <h4><i class="fas fa-star"></i> Hadith</h4>
+                    <div class="tool-buttons">
+                        <button class="tool-btn" onclick="showHadithModal()">
+                            <i class="fas fa-quote-right"></i> Get Hadith
+                        </button>
+                        <button class="tool-btn" onclick="getRandomHadith()">
+                            <i class="fas fa-shuffle"></i> Random Hadith
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Prayer Tools -->
+                <div class="tool-category">
+                    <h4><i class="fas fa-pray"></i> Prayer</h4>
+                    <div class="tool-buttons">
+                        <button class="tool-btn" onclick="getPrayerTimes()">
+                            <i class="fas fa-clock"></i> Prayer Times
+                        </button>
+                        <button class="tool-btn" onclick="getQiblaDirection()">
+                            <i class="fas fa-compass"></i> Qibla Direction
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Spiritual Tools -->
+                <div class="tool-category">
+                    <h4><i class="fas fa-hands-praying"></i> Spiritual</h4>
+                    <div class="tool-buttons">
+                        <button class="tool-btn" onclick="showDuaModal()">
+                            <i class="fas fa-hand-holding-heart"></i> Get Dua
+                        </button>
+                        <button class="tool-btn" onclick="getDailyContent()">
+                            <i class="fas fa-calendar-day"></i> Daily Content
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Guidance Tools -->
+                <div class="tool-category">
+                    <h4><i class="fas fa-lightbulb"></i> Guidance</h4>
+                    <div class="tool-buttons">
+                        <button class="tool-btn" onclick="showGuidanceModal()">
+                            <i class="fas fa-question-circle"></i> Get Guidance
+                        </button>
+                        <button class="tool-btn" onclick="showSearchModal()">
+                            <i class="fas fa-search"></i> Search All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Selection -->
+            <div class="agent-selection">
+                <h4><i class="fas fa-users"></i> Specialists</h4>
+                <select id="agentSelect" onchange="changeAgent()">
+                    <option value="single">Noor (Single Agent)</option>
+                    <option value="auto">Auto-Route Specialists</option>
+                    <option value="quran">Sheikh Abdullah (Quran)</option>
+                    <option value="hadith">Sheikh Aisha (Hadith)</option>
+                    <option value="fiqh">Sheikh Omar (Fiqh)</option>
+                    <option value="spiritual">Sheikh Fatima (Spiritual)</option>
+                </select>
+            </div>
+        </aside>
+
+        <!-- Chat Area -->
+        <main class="chat-container">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="agent-info">
+                    <div class="agent-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="agent-details">
+                        <h3 id="currentAgentName">Noor</h3>
+                        <p id="currentAgentRole">Islamic AI Assistant</p>
+                        <div class="status-indicator online">
+                            <i class="fas fa-circle"></i> Online
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                    <button class="action-btn" onclick="clearChat()" title="Clear Chat">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="action-btn" onclick="exportChat()" title="Export Chat">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages" id="chatMessages">
+                <!-- Welcome Message -->
+                <div class="message agent-message">
+                    <div class="message-avatar">
+                        <i class="fas fa-mosque"></i>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="sender-name">Noor</span>
+                            <span class="message-time">Now</span>
+                        </div>
+                        <div class="message-text">
+                            <div class="welcome-message">
+                                <h3>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</h3>
+                                <p><strong>Assalamu Alaikum wa Rahmatullahi wa Barakatuh!</strong> 🕌</p>
+                                <p>Welcome to your Islamic AI Assistant. I'm <strong>Noor</strong>, here to provide authentic Islamic guidance based on Quran and Sunnah.</p>
+                                
+                                <div class="feature-grid">
+                                    <div class="feature-item">
+                                        <i class="fas fa-book-quran"></i>
+                                        <span>Quranic verses with Arabic text</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-star"></i>
+                                        <span>Authentic Hadith collections</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-clock"></i>
+                                        <span>Prayer times & Qibla direction</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-hands-praying"></i>
+                                        <span>Duas & spiritual guidance</span>
+                                    </div>
+                                </div>
+                                
+                                <p><strong>Try asking:</strong></p>
+                                <div class="suggestion-chips">
+                                    <span class="chip" onclick="sendSuggestion('Show me Surah Al-Fatiha')">Show me Surah Al-Fatiha</span>
+                                    <span class="chip" onclick="sendSuggestion('Tell me a hadith about kindness')">Tell me a hadith about kindness</span>
+                                    <span class="chip" onclick="sendSuggestion('What are today\'s prayer times?')">What are today's prayer times?</span>
+                                    <span class="chip" onclick="sendSuggestion('Give me a morning dua')">Give me a morning dua</span>
+                                </div>
+                                
+                                <p>How may I assist you in your Islamic journey today? 🌟</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <button class="input-action-btn" onclick="getLocation()" title="Share Location">
+                        <i class="fas fa-location-dot"></i>
+                    </button>
+                    <input type="text" id="messageInput" placeholder="Ask about Quran, Hadith, Prayer times, or Islamic guidance..." onkeypress="handleKeyPress(event)">
+                    <button class="input-action-btn" onclick="toggleVoiceInput()" title="Voice Input">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button class="send-btn" onclick="sendMessage()" title="Send Message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <span class="typing-text">Noor is typing...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Quran Modal -->
+    <div id="quranModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-book-quran"></i> Get Quran Verse</h3>
+                <span class="close" onclick="closeModal('quranModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="verseInput">Verse Reference:</label>
+                    <input type="text" id="verseInput" placeholder="e.g., 2:255, al-fatiha, ayat-kursi">
+                    <small>Examples: 2:255 (Ayat al-Kursi), 1:1 (Al-Fatiha), 112:1 (Al-Ikhlas)</small>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="getQuranVerse()">Get Verse</button>
+                    <button class="btn-secondary" onclick="closeModal('quranModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hadith Modal -->
+    <div id="hadithModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-star"></i> Get Hadith</h3>
+                <span class="close" onclick="closeModal('hadithModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="hadithTopicInput">Topic (optional):</label>
+                    <input type="text" id="hadithTopicInput" placeholder="e.g., kindness, patience, charity">
+                    <small>Leave empty for random hadith</small>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="getHadithByTopic()">Get Hadith</button>
+                    <button class="btn-secondary" onclick="closeModal('hadithModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dua Modal -->
+    <div id="duaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-hands-praying"></i> Get Dua</h3>
+                <span class="close" onclick="closeModal('duaModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="duaOccasionSelect">Occasion:</label>
+                    <select id="duaOccasionSelect">
+                        <option value="morning">Morning</option>
+                        <option value="evening">Evening</option>
+                        <option value="before_eating">Before Eating</option>
+                        <option value="after_eating">After Eating</option>
+                        <option value="travel">Travel</option>
+                        <option value="sleep">Sleep</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="getDuaByOccasion()">Get Dua</button>
+                    <button class="btn-secondary" onclick="closeModal('duaModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guidance Modal -->
+    <div id="guidanceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-lightbulb"></i> Get Islamic Guidance</h3>
+                <span class="close" onclick="closeModal('guidanceModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="guidanceTopicInput">Topic:</label>
+                    <input type="text" id="guidanceTopicInput" placeholder="e.g., prayer, fasting, charity, patience">
+                    <small>What topic would you like guidance on?</small>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="getGuidanceByTopic()">Get Guidance</button>
+                    <button class="btn-secondary" onclick="closeModal('guidanceModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-search"></i> Search Islamic Content</h3>
+                <span class="close" onclick="closeModal('searchModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="searchQueryInput">Search Query:</label>
+                    <input type="text" id="searchQueryInput" placeholder="e.g., patience, charity, prayer">
+                    <small>Search across Quran and Hadith collections</small>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="performSearch()">Search</button>
+                    <button class="btn-secondary" onclick="closeModal('searchModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Fetching authentic Islamic content...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

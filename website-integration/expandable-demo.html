@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islamic AI Agent - Expandable Chat Widget Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .hero-section {
+            text-align: center;
+            padding: 100px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #fff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+            padding: 0 20px;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        
+        .feature-description {
+            opacity: 0.9;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+        
+        .demo-instructions {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 60px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+        
+        .demo-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        
+        .demo-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .demo-step {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #16a085;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .step-text {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+        
+        .chat-indicator {
+            position: fixed;
+            bottom: 100px;
+            right: 100px;
+            background: rgba(22, 160, 133, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: pulse 2s infinite;
+            z-index: 9999;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            margin-top: 60px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .footer-text {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.2rem;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chat-indicator {
+                bottom: 80px;
+                right: 20px;
+                font-size: 0.9rem;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero-section">
+        <h1 class="hero-title">🕌 Islamic AI Assistant</h1>
+        <p class="hero-subtitle">
+            Experience the most comprehensive Islamic AI chat widget with expandable features including prayer times, Qibla direction, Islamic tools, and authentic scholarly guidance.
+        </p>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <span class="feature-icon">💬</span>
+                <h3 class="feature-title">AI Chat with 4 Modes</h3>
+                <p class="feature-description">
+                    General Islamic chat, Quran search, Hadith research, and expert scholar consultation with beautiful, formatted responses from specialized AI agents.
+                </p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">🕐</span>
+                <h3 class="feature-title">Prayer Times & Calendar</h3>
+                <p class="feature-description">
+                    Accurate prayer times for your location, next prayer countdown, Gregorian and Hijri dates, all beautifully displayed in an intuitive interface.
+                </p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">🧭</span>
+                <h3 class="feature-title">Qibla Direction Finder</h3>
+                <p class="feature-description">
+                    Interactive compass showing precise Qibla direction, distance to Mecca, and beautiful duas for prayer orientation with visual compass interface.
+                </p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">🛠️</span>
+                <h3 class="feature-title">Islamic Tools Collection</h3>
+                <p class="feature-description">
+                    Zakat calculator, digital Tasbih counter, Hijri date converter, Quran audio player, daily duas collection, and Islamic names database.
+                </p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">📱</span>
+                <h3 class="feature-title">Responsive & Expandable</h3>
+                <p class="feature-description">
+                    Mobile-first design that adapts to any screen size. Expandable interface for desktop users with tabbed navigation and full-featured experience.
+                </p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">🌟</span>
+                <h3 class="feature-title">Beautiful Islamic Design</h3>
+                <p class="feature-description">
+                    Authentic Islamic aesthetics with Arabic text support, Islamic greetings, culturally appropriate emojis, and professional presentation.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="demo-instructions">
+        <h2 class="demo-title">🎯 Try the Interactive Demo</h2>
+        <p>Click the mosque icon (🕌) in the bottom-right corner to explore all features!</p>
+        
+        <div class="demo-steps">
+            <div class="demo-step">
+                <div class="step-number">1</div>
+                <div class="step-text">
+                    <strong>Open Chat:</strong> Click the 🕌 button to open the Islamic AI Assistant
+                </div>
+            </div>
+            
+            <div class="demo-step">
+                <div class="step-number">2</div>
+                <div class="step-text">
+                    <strong>Expand View:</strong> Click the ⛶ button to expand for full features
+                </div>
+            </div>
+            
+            <div class="demo-step">
+                <div class="step-number">3</div>
+                <div class="step-text">
+                    <strong>Explore Tabs:</strong> Switch between Chat, Prayer, Qibla, and Tools
+                </div>
+            </div>
+            
+            <div class="demo-step">
+                <div class="step-number">4</div>
+                <div class="step-text">
+                    <strong>Test Chat Modes:</strong> Try General, Quran, Hadith, and Scholar modes
+                </div>
+            </div>
+            
+            <div class="demo-step">
+                <div class="step-number">5</div>
+                <div class="step-text">
+                    <strong>Check Prayer Times:</strong> View accurate times for your location
+                </div>
+            </div>
+            
+            <div class="demo-step">
+                <div class="step-number">6</div>
+                <div class="step-text">
+                    <strong>Find Qibla:</strong> Use the interactive compass for prayer direction
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-indicator">
+        👆 Click the 🕌 chat button to start!
+    </div>
+    
+    <div class="footer">
+        <p class="footer-text">
+            🕌 Islamic AI Assistant - Combining authentic Islamic knowledge with modern technology<br>
+            Built with love for the Muslim Ummah worldwide 🤲
+        </p>
+    </div>
+
+    <!-- Islamic AI Chat Widget Configuration -->
+    <script>
+        window.IslamicChatConfig = {
+            apiUrl: 'http://localhost:5001',
+            position: 'bottom-right',
+            theme: 'islamic-green',
+            title: 'Islamic AI Assistant',
+            subtitle: 'Ask about Islam, Prayer, Quran, Hadith & more',
+            debug: true, // Enable debug mode
+            fallbackResponses: {
+                'network_error': 'I apologize, but I\'m having trouble connecting to the server. Please check your internet connection and try again.',
+                'server_error': 'The server is currently unavailable. Please try again later or contact support if the issue persists.',
+                'timeout': 'The request is taking longer than expected. Please try again in a moment.',
+                'default': 'I apologize, but I\'m having trouble processing your request right now. Please try again or ask a different question.'
+            },
+            timeout: 30000 // 30 seconds timeout
+        };
+
+        // Add global error handler
+        window.addEventListener('error', function(event) {
+            console.error('Global error:', event.error);
+            // You can add additional error handling here if needed
+        });
+    </script>
+    
+    <!-- Load the Enhanced Islamic Chat Widget -->
+    <script src="islamic-chat-widget.js"></script>
+    
+    <script>
+        // Add some interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate feature cards on scroll
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, observerOptions);
+            
+            // Observe all feature cards
+            document.querySelectorAll('.feature-card').forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(30px)';
+                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                observer.observe(card);
+            });
+            
+            // Hide chat indicator after 10 seconds
+            setTimeout(() => {
+                const indicator = document.querySelector('.chat-indicator');
+                if (indicator) {
+                    indicator.style.opacity = '0';
+                    indicator.style.transform = 'translateY(20px)';
+                    setTimeout(() => indicator.remove(), 500);
+                }
+            }, 10000);
+        });
+    </script>
+</body>
+</html>
