@@ -1,0 +1,7 @@
+2026-02-22 16:09:30 | WARNING  | agentscope.manager._model:load_model_configs:131 - Config name [openai_cfg] already exists.
+2026-02-22 16:09:30 | INFO     | agentscope.manager._model:load_model_configs:138 - Load configs for model wrapper: openai_cfg
+2026-02-22 16:09:30 | WARNING  | agentscope.models.openai_model:__init__:117 - Fail to get max_length for gpt-4o-mini: 'Model [gpt-4o-mini] not found in OPENAI_MAX_LENGTH. The last updated date is 20231212'
+2026-02-22 16:09:30 | WARNING  | agentscope.models.openai_model:__init__:117 - Fail to get max_length for gpt-4o-mini: 'Model [gpt-4o-mini] not found in OPENAI_MAX_LENGTH. The last updated date is 20231212'
+2026-02-22 16:09:30 | WARNING  | agentscope.models.openai_model:__init__:117 - Fail to get max_length for gpt-4o-mini: 'Model [gpt-4o-mini] not found in OPENAI_MAX_LENGTH. The last updated date is 20231212'
+2026-02-22 16:09:30 | WARNING  | agentscope.models.openai_model:__init__:117 - Fail to get max_length for gpt-4o-mini: 'Model [gpt-4o-mini] not found in OPENAI_MAX_LENGTH. The last updated date is 20231212'
+2026-02-22 16:09:30 | WARNING  | agentscope.models.openai_model:__init__:117 - Fail to get max_length for gpt-4o-mini: 'Model [gpt-4o-mini] not found in OPENAI_MAX_LENGTH. The last updated date is 20231212'

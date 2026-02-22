@@ -1,0 +1,2 @@
+2026-02-22 16:18:40 | INFO     | agentscope.manager._model:load_model_configs:138 - Load configs for model wrapper: openai_cfg
+2026-02-22 16:18:40 | WARNING  | agentscope.models.openai_model:__init__:117 - Fail to get max_length for gpt-4o-mini: 'Model [gpt-4o-mini] not found in OPENAI_MAX_LENGTH. The last updated date is 20231212'
