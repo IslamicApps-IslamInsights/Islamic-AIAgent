@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import os
 from functools import lru_cache
 import hashlib
+import random
 
 @dataclass
 class QuranVerse:
@@ -488,7 +489,6 @@ class DynamicIslamicKnowledge:
             (17, 80),  # Truth has come and falsehood has vanished
         ]
         
-        import random
         surah, verse = random.choice(popular_verses)
         return await self.quran_api.get_verse_by_reference(surah, verse)
     

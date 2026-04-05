@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*venv*/
+lite_venv/
+my_venv/
+test_venv/
+islamic_ai_venv/
+islamic_ai_venv.nosync/
+
+# Logs and databases
+*.log
+*.pid
+backend.log
+web_api.log
+import_check.log
+import_error.log
+server_output.log
+server_output_verification.log
+debug_verbose.log
+test_log.txt
+
+# Agentscope
+runs/
+
+# MacOS
+.DS_Store
+
+# UV
+uv
+uvx
+
+# Project specific
+topic_analytics.json
+backend.pid
+frontend.pid
+backend_restoration.pid
+import_error.log
+import_check.log
+knowledge_base/data_old/
+islamic-ai-agent/node_modules/
+islamic-ai-agent/dist/
+islamic-ai-agent/build/

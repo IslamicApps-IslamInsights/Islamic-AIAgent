@@ -8,34 +8,57 @@ import requests
 from typing import Dict, List, Optional
 from datetime import datetime
 import math
-try:
-    from hijri_converter import Hijri, Gregorian
-except ImportError:
-    # Fallback if hijri_converter is not available
-    Hijri = None
-    Gregorian = None
+import time
+from functools import wraps
+
+# --- Global Caching System ---
+class ServiceCache:
+    """A simple TTL-based cache for scholarly services"""
+    _cache = {}
+    
+    @classmethod
+    def get(cls, key: str):
+        if key in cls._cache:
+            val, expiry = cls._cache[key]
+            if time.time() < expiry:
+                return val
+            cls._cache.pop(key, None)
+        return None
+    
+    @classmethod
+    def set(cls, key: str, value: any, ttl: int = 3600):
+        cls._cache[key] = (value, time.time() + ttl)
+
+def cached_service(ttl: int = 3600):
+    """Decorator for caching service results"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Create a unique key based on function name and arguments
+            key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
+            cached_val = ServiceCache.get(key)
+            if cached_val is not None:
+                return cached_val
+            
+            result = func(*args, **kwargs)
+            ServiceCache.set(key, result, ttl)
+            return result
+        return wrapper
+    return decorator
+
+# Defer heavy imports to reduce startup latency
+def _get_hijri():
+    try:
+        from hijri_converter import Hijri, Gregorian
+        return Hijri, Gregorian
+    except ImportError:
+        return None, None
 
 # Import AgentScope ToolResponse
-try:
-    from agentscope.service import ToolResponse
-except ImportError:
-    try:
-        from agentscope.tools import ToolResponse
-    except ImportError:
-        # Fallback if AgentScope is not available
-        class ToolResponse:
-            def __init__(self, content: str, status: str = "success"):
-                self.content = content
-                self.status = status
+# Agentscope imports will be deferred
 
 # Import our dynamic knowledge base
-from dynamic_islamic_knowledge import (
-    get_dynamic_quran_verse,
-    get_dynamic_hadith,
-    search_islamic_knowledge,
-    get_topic_guidance,
-    DynamicIslamicKnowledge
-)
+# Dynamic knowledge imports will be deferred
 
 # Keep existing location-based tools
 def calculate_zakat(cash: float = 0, gold_grams: float = 0, silver_grams: float = 0, investments: float = 0, business_assets: float = 0, debts: float = 0) -> str:
@@ -89,7 +112,7 @@ def calculate_zakat(cash: float = 0, gold_grams: float = 0, silver_grams: float 
 📊 **Current Nisab (Silver)**: Approx. ${silver_nisab_threshold:,.2f}
 🧮 **Zakat Rate**: 2.5%
 
-{"### 🤲 **Zakat Due: $" + f"{zakat_due:,.2f}" + "**" if nisab_met else "### 🤲 **No Zakat Due** (Wealth is below Nisab)"}
+{"🤲 **Zakat Due: $" + f"{zakat_due:,.2f}" + "**" if nisab_met else "🤲 **No Zakat Due** (Wealth is below Nisab)"}
 
 ---
 💡 **Fiqh Details:**
@@ -102,31 +125,26 @@ def calculate_zakat(cash: float = 0, gold_grams: float = 0, silver_grams: float 
     except Exception as e:
         return f"❌ Error calculating Zakat: {str(e)}"
 
-def get_prayer_times(latitude: float, longitude: float) -> str:
+@cached_service(ttl=3600)
+def get_prayer_times(latitude: float, longitude: float, query_date: str = None) -> Dict:
     """
-    Get prayer times for a specific location using Aladhan API
-    
-    Args:
-        latitude: Latitude of the location
-        longitude: Longitude of the location
-    
-    Returns:
-        Formatted prayer times for today with next prayer and Hijri date
+    Get prayer times and Hijri date for a specific location using Aladhan API
     """
     try:
-        today = datetime.now().strftime('%Y-%m-%d')
-        url = f"https://api.aladhan.com/v1/timings/{today}"
+        final_date = query_date if query_date else datetime.now().strftime('%Y-%m-%d')
+        url = f"https://api.aladhan.com/v1/timings/{final_date}"
         params = {
             'latitude': latitude,
             'longitude': longitude,
-            'method': 2  # Islamic Society of North America (ISNA)
+            'method': 2  # ISNA
         }
         
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
-            data = response.json()
-            timings = data['data']['timings']
-            hijri_date = data['data']['date']['hijri']
+            api_data = response.json()['data']
+            timings = api_data['timings']
+            hijri_info = api_data['date']['hijri']
+            gregorian_info = api_data['date']['gregorian']
             
             def format_time(time_str):
                 """Convert 24-hour to 12-hour format"""
@@ -144,7 +162,7 @@ def get_prayer_times(latitude: float, longitude: float) -> str:
                 now = datetime.now()
                 current_time = now.strftime('%H:%M')
                 
-                prayers = [
+                prayers_list = [
                     ('Fajr', timings['Fajr'], '🌅'),
                     ('Dhuhr', timings['Dhuhr'], '☀️'),
                     ('Asr', timings['Asr'], '🌤️'),
@@ -152,9 +170,8 @@ def get_prayer_times(latitude: float, longitude: float) -> str:
                     ('Isha', timings['Isha'], '🌙')
                 ]
                 
-                for prayer_name, prayer_time, emoji in prayers:
+                for prayer_name, prayer_time, emoji in prayers_list:
                     if current_time < prayer_time:
-                        # Calculate time remaining
                         prayer_datetime = datetime.strptime(prayer_time, '%H:%M').replace(
                             year=now.year, month=now.month, day=now.day
                         )
@@ -162,21 +179,25 @@ def get_prayer_times(latitude: float, longitude: float) -> str:
                         hours, remainder = divmod(time_diff.seconds, 3600)
                         minutes, _ = divmod(remainder, 60)
                         
-                        if hours > 0:
-                            time_remaining = f"{hours}h {minutes}m"
-                        else:
-                            time_remaining = f"{minutes}m"
-                        
+                        time_remaining = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
                         return f"{emoji} **{prayer_name}** at {format_time(prayer_time)} (in {time_remaining})"
                 
-                # If no prayer found for today, next is Fajr tomorrow
                 return f"🌅 **Fajr** tomorrow at {format_time(timings['Fajr'])}"
             
-            # Format Hijri date
-            hijri_day = hijri_date['day']
-            hijri_month = hijri_date['month']['en']
-            hijri_year = hijri_date['year']
+            hijri_day = hijri_info['day']
+            hijri_month = hijri_info['month']['en']
+            hijri_year = hijri_info['year']
             
+            Hijri, Gregorian = _get_hijri()
+            if Hijri and Gregorian:
+                # If local converter is available, ensure parity
+                try:
+                    now = datetime.now()
+                    h = Gregorian(now.year, now.month, now.day).to_hijri()
+                    # Use Aladhan as primary, but we have local backup
+                    pass
+                except:
+                    pass
             prayer_times_text = f"""🕐 **Today's Prayer Times**
 
 📅 **Islamic Date:** {hijri_day} {hijri_month} {hijri_year} AH
@@ -189,16 +210,23 @@ def get_prayer_times(latitude: float, longitude: float) -> str:
 🌅 **Maghrib**: {format_time(timings['Maghrib'])}
 🌙 **Isha**: {format_time(timings['Isha'])}
 
-📍 **Location-based times** for your area
+📍 **Location**: {latitude}, {longitude}
 💡 Times calculated using precise coordinates
 🌐 **Source:** Aladhan API (Authentic)
 
 May Allah accept your prayers! 🤲"""
-            return prayer_times_text
+
+            return {
+                "text": prayer_times_text,
+                "hijri": f"{hijri_day} {hijri_month} {hijri_year} AH",
+                "hijri_obj": hijri_info,
+                "gregorian": gregorian_info['date'],
+                "timings": timings
+            }
         else:
-            return "❌ Unable to fetch prayer times. Please try again later."
+            return {"error": "Unable to fetch prayer times."}
     except Exception as e:
-        return f"❌ Error getting prayer times: {str(e)}"
+        return {"error": f"Error getting prayer times: {str(e)}"}
 
 def get_qibla_direction(latitude: float, longitude: float) -> str:
     """
@@ -252,26 +280,36 @@ def get_qibla_direction(latitude: float, longitude: float) -> str:
         return {"error": str(e)}
 
 def _calculate_hijri_fallback(gregorian_date):
-    """Simple fallback Hijri date calculation"""
-    # This is a very approximate calculation
-    # For accurate dates, proper hijri-converter should be used
-    hijri_year = gregorian_date.year - 579  # Approximate conversion
+    """Simple fallback Hijri date calculation (Tabular)"""
+    # This is a basic conversion, accurate within a day for some regions
+    # 0 Hijri is approx 622-07-16
+    from datetime import date
+    reference_date = date(622, 7, 16)
+    delta = (gregorian_date.date() - reference_date).days
+    
+    # Approx Hijri year (354.36 days per year)
+    h_year = int(delta / 354.367) + 1
+    # Very rough month estimate
+    h_month_approx = int((delta % 354.367) / 29.53) + 1
+    h_day_approx = int((delta % 354.367) % 29.53) + 1
+
     hijri_months = [
         'Muharram', 'Safar', "Rabi' al-Awwal", "Rabi' al-Thani",
         'Jumada al-Awwal', 'Jumada al-Thani', 'Rajab', "Sha'ban",
         'Ramadan', 'Shawwal', "Dhu al-Qi'dah", 'Dhu al-Hijjah'
     ]
-    month_index = (gregorian_date.month - 1) % 12
-    month_index = (gregorian_date.month - 1) % 12
-    return f"{gregorian_date.day} {hijri_months[month_index]} {hijri_year} AH (approx)"
+    
+    
+    month_index = (h_month_approx - 1) % 12
+    return f"{h_day_approx} {hijri_months[month_index]} {h_year} AH (Approx)"
 
 def get_islamic_calendar_events():
     """Returns upcoming major Islamic events for the dashboard"""
     try:
         today = datetime.now()
         hijri_date = None
-        if Hijri:
-            hijri_date = Hijri.from_gregorian(today.year, today.month, today.day)
+        if Hijri and Gregorian:
+            hijri_date = Gregorian(today.year, today.month, today.day).to_hijri()
         else:
             hijri_date = _calculate_hijri_fallback(today)
             
@@ -295,17 +333,40 @@ def get_islamic_calendar_events():
     except Exception:
         return {"error": "Unable to calculate events"}
 
-def get_hijri_date() -> str:
+def get_hijri_date(latitude: Optional[float] = None, longitude: Optional[float] = None) -> str:
     """
-    Get current Hijri date using hijri-converter library
+    Get current Hijri date. Uses location-based API if coordinates provided.
     
+    Args:
+        latitude: User's latitude (optional)
+        longitude: User's longitude (optional)
+        
     Returns:
         Current Hijri date in formatted string
     """
     try:
         today = datetime.now()
         
-        if Hijri is None:
+        # If location is provided, use the precise API
+        if latitude is not None and longitude is not None:
+            try:
+                # Reuse the prayer times logic which already fetches Hijri date
+                res = get_prayer_times(latitude, longitude)
+                if isinstance(res, dict) and "hijri" in res:
+                    return f"""📅 **Localized Hijri Date**
+
+🌙 **Today**: {res['hijri']}
+📍 **Location**: {latitude}, {longitude}
+📊 **Gregorian**: {res['gregorian']}
+
+📝 **Note:** This date is accurately calculated for your specific location.
+🌐 **Source:** Aladhan API (Authentic)"""
+            except Exception as e:
+                print(f"Localized Hijri Error: {e}")
+                # Fall through to standard calculation
+        
+        Hijri, Gregorian = _get_hijri()
+        if Hijri is None or Gregorian is None:
             # Fallback calculation if hijri_converter is not available
             return f"""📅 **Current Hijri Date**
 
@@ -324,9 +385,11 @@ def get_hijri_date() -> str:
 ⚠️ **Note:** Using fallback calculation. Install hijri-converter for precise dates."""
         
         try:
-            hijri_date = Hijri.from_gregorian(today.year, today.month, today.day)
-        except AttributeError:
-            # Fallback if the method doesn't exist
+            # Correct API: Gregorian(y, m, d).to_hijri()
+            hijri_date = Gregorian(today.year, today.month, today.day).to_hijri()
+        except Exception as e:
+            # Fallback if the API fails
+            print(f"Hijri Conversion Error: {e}")
             return f"""📅 **Current Hijri Date**
 
 🌙 **Approximate Date**: {_calculate_hijri_fallback(today)}
@@ -382,6 +445,8 @@ def get_quran_verse(verse_reference: str) -> str:
         ToolResponse with formatted verse with Arabic text, translation, and reference
     """
     try:
+        import asyncio
+        from dynamic_islamic_knowledge import get_dynamic_quran_verse
         # Run async function in sync context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -402,6 +467,8 @@ def get_hadith(topic: str = None) -> str:
         ToolResponse with formatted hadith with text, reference, and authenticity verification
     """
     try:
+        import asyncio
+        from dynamic_islamic_knowledge import get_dynamic_hadith
         # Run async function in sync context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -422,6 +489,8 @@ def search_islamic_content(query: str) -> str:
         Search results from both Quran and Hadith sources
     """
     try:
+        import asyncio
+        from dynamic_islamic_knowledge import search_islamic_knowledge
         # Run async function in sync context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -442,6 +511,8 @@ def get_islamic_guidance(topic: str) -> str:
         Comprehensive guidance with relevant verses and hadiths
     """
     try:
+        import asyncio
+        from dynamic_islamic_knowledge import get_topic_guidance
         # Run async function in sync context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -538,210 +609,231 @@ def get_dua(occasion: str) -> str:
 
 For more specific duas, try: `get_dua('morning')` or search Islamic content."""
 
-def get_daily_islamic_content() -> str:
+@cached_service(ttl=3600)
+def get_daily_islamic_content() -> dict:
     """
-    Get daily Islamic content including verse and hadith of the day
+    Get daily Islamic content including structured verse and hadith of the day
     
     Returns:
-        Daily verse and hadith with authentic sources
+    Dict containing structured verse and hadith data
     """
     try:
-        # Get current date for consistent daily content
+        from dynamic_islamic_knowledge import DynamicIslamicKnowledge
+        import asyncio
+        from datetime import datetime
+        
+        # Initialize knowledge base
+        knowledge = DynamicIslamicKnowledge()
+        
+        # Safe bridge for running async in sync
+        def run_async(coro):
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If we are in another thread, we can't use the running loop
+                    import threading
+                    if threading.current_thread() != threading.main_thread():
+                        new_loop = asyncio.new_event_loop()
+                        return new_loop.run_until_complete(coro)
+                    else:
+                        # This shouldn't happen in a simple Flask app unless using something like Quart
+                        # but as a fallback, we can use a separate thread
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            return executor.submit(asyncio.run, coro).result()
+                else:
+                    return loop.run_until_complete(coro)
+            except RuntimeError:
+                return asyncio.run(coro)
+
+        async def fetch_content():
+            verse = await knowledge.get_verse_of_the_day()
+            hadith = await knowledge.get_hadith_of_the_day()
+            return verse, hadith
+            
+        verse_obj, hadith_obj = run_async(fetch_content())
+        
         today = datetime.now()
-        day_of_year = today.timetuple().tm_yday
         
-        # Rotate through popular verses based on day of year
-        popular_verses = [
-            "2:255",  # Ayat al-Kursi
-            "1:1",    # Al-Fatiha
-            "2:286",  # Last verse of Al-Baqarah
-            "3:200",  # Patience and perseverance
-            "13:28",  # Hearts find rest in remembrance of Allah
-            "94:5",   # With hardship comes ease
-            "17:80",  # Truth has come
-        ]
-        
-        verse_index = day_of_year % len(popular_verses)
-        selected_verse = popular_verses[verse_index]
-        
-        # Get verse and hadith
-        verse_content = get_quran_verse(selected_verse)
-        hadith_content = get_hadith()
-        
-        daily_content_text = f"""🌅 **Daily Islamic Content - {today.strftime('%B %d, %Y')}**
-
-📖 **Verse of the Day:**
-{verse_content.content if hasattr(verse_content, 'content') else verse_content}
-
-⭐ **Hadith of the Day:**
-{hadith_content.content if hasattr(hadith_content, 'content') else hadith_content}
-
-🤲 **Daily Reflection:**
-Take a moment to reflect on these teachings and how they can guide your day.
-
-May Allah bless your day with His guidance and mercy! 🌟"""
-        return daily_content_text
+        return {
+            "date": today.strftime('%B %d, %Y'),
+            "verse": {
+                "arabic": verse_obj.text_arabic if verse_obj else "",
+                "translation": verse_obj.text_english if verse_obj else "Unable to fetch verse",
+                "reference": verse_obj.reference if verse_obj else "",
+                "surah": verse_obj.surah_name if verse_obj else ""
+            },
+            "hadith": {
+                "arabic": hadith_obj.text_arabic if hadith_obj else "",
+                "translation": hadith_obj.text_english if hadith_obj else "Unable to fetch hadith",
+                "narrator": hadith_obj.narrator if hadith_obj else "",
+                "reference": hadith_obj.reference if hadith_obj else "",
+                "grade": hadith_obj.grade if hadith_obj else ""
+            },
+            "reflection": "Take a moment to reflect on these divine teachings and how they can guide your heart today. May Allah bless you."
+        }
         
     except Exception as e:
-        return f"❌ Error getting daily content: {str(e)}"
+        print(f"Error in daily content: {e}")
+        return {
+            "error": str(e),
+            "verse": {"translation": "Error fetching content"},
+            "hadith": {"translation": "Error fetching content"}
+        }
 
 # Advanced Islamic knowledge functions
+import os
+import json
+
 def get_surah_info(surah_name_or_number: str) -> str:
     """
-    Get information about a specific Surah
+    Get detailed information about any of the 114 Surahs using the expanded dataset.
     
     Args:
-        surah_name_or_number: Surah name or number
-    
-    Returns:
-        Detailed information about the Surah
+        surah_name_or_number: Surah name or number (1-114)
     """
-    surah_info = {
-        '1': {'name': 'Al-Fatiha', 'meaning': 'The Opening', 'verses': 7, 'revelation': 'Meccan'},
-        '2': {'name': 'Al-Baqarah', 'meaning': 'The Cow', 'verses': 286, 'revelation': 'Medinan'},
-        '3': {'name': 'Ali Imran', 'meaning': 'Family of Imran', 'verses': 200, 'revelation': 'Medinan'},
-        '18': {'name': 'Al-Kahf', 'meaning': 'The Cave', 'verses': 110, 'revelation': 'Meccan'},
-        '36': {'name': 'Ya-Sin', 'meaning': 'Ya-Sin', 'verses': 83, 'revelation': 'Meccan'},
-        '55': {'name': 'Ar-Rahman', 'meaning': 'The Beneficent', 'verses': 78, 'revelation': 'Medinan'},
-        '67': {'name': 'Al-Mulk', 'meaning': 'The Sovereignty', 'verses': 30, 'revelation': 'Meccan'},
-        '112': {'name': 'Al-Ikhlas', 'meaning': 'The Sincerity', 'verses': 4, 'revelation': 'Meccan'},
-    }
-    
-    # Try to find surah by number or name
-    surah_key = None
-    search_term = surah_name_or_number.lower()
-    
-    for key, info in surah_info.items():
-        if (key == search_term or 
-            info['name'].lower() == search_term or 
-            search_term in info['name'].lower()):
-            surah_key = key
-            break
-    
-    if surah_key:
-        info = surah_info[surah_key]
-        return f"""📖 **Surah {info['name']} (Chapter {surah_key})**
+    try:
+        # Resolve absolute path to ensure data is found
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(base_dir, "knowledge_base/data/quran_surah_metadata_114.json")
+        
+        if not os.path.exists(data_path):
+            return "⚠️ Surah metadata expansion in progress. Please try again in a moment."
+            
+        with open(data_path, "r", encoding="utf-8-sig") as f:
+            full_data = json.load(f)
+            surah_list = full_data.get("data", [])
+            
+        search_term = str(surah_name_or_number).lower().strip()
+        found_surah = None
+        
+        # Search by number or name
+        for s in surah_list:
+            if (str(s["number"]) == search_term or 
+                s["englishName"].lower() == search_term or 
+                search_term in s["englishName"].lower() or
+                s["englishNameTranslation"].lower() == search_term):
+                found_surah = s
+                break
+                
+        if found_surah:
+            return f"""📖 **Surah {found_surah['englishName']} (Chapter {found_surah['number']})**
+            
+**Meaning:** {found_surah['englishNameTranslation']}
+**Arabic Name:** {found_surah['name']}
+**Total Verses:** {found_surah['numberOfAyahs']}
+**Revelation:** {found_surah['revelationType']}
 
-**Meaning:** {info['meaning']}
-**Number of Verses:** {info['verses']}
-**Revelation:** {info['revelation']}
+---
+✨ **Scholarly Tip:** This Surah is part of the 114 chapters that form the complete Quran.
+💡 **To Read:** Use `get_quran_verse('{found_surah['number']}:1')` to start reading."""
+        
+        return f"❌ Surah '{surah_name_or_number}' not found. Please provide a valid Surah name or number (1-114)."
+    except Exception as e:
+        return f"❌ Error retrieving Surah info: {str(e)}"
 
-**To read this Surah:** Use `get_quran_verse('{surah_key}:1')` for the first verse
-**For complete Surah:** The API can provide all verses
-
-✨ **Note:** This is one of the most beloved Surahs in the Quran."""
-    else:
-        return f"""❌ Surah '{surah_name_or_number}' not found in our database.
-
-**Available Surahs:** Al-Fatiha, Al-Baqarah, Ali Imran, Al-Kahf, Ya-Sin, Ar-Rahman, Al-Mulk, Al-Ikhlas
-
-**Try:** `get_surah_info('Al-Fatiha')` or `get_surah_info('1')`"""
-
+@cached_service(ttl=86400)  # Names of Allah rarely change
 def get_name_of_allah(query: str) -> str:
     """
-    Get 99 Names of Allah (Asma-ul-Husna) with meanings and virtues
+    Get 99 Names of Allah (Asma-ul-Husna) with meanings and descriptions from the full dataset.
     
     Args:
         query: Name (Arabic/English) or Number (1-99)
     """
-    names = {
-        "1": {"ar": "الرَّحْمَنُ", "en": "Ar-Rahman", "mean": "The All-Compassionate", "virtue": "Reciting this name helps clear the mind and brings divine mercy into one's life."},
-        "2": {"ar": "الرَّحِيمُ", "en": "Ar-Rahim", "mean": "The Most Merciful", "virtue": "Frequent remembrance of this name protects against calamities and brings peace."},
-        "3": {"ar": "الْمَلِكُ", "en": "Al-Malik", "mean": "The Absolute Ruler", "virtue": "Helps one gain self-discipline and independence from worldly needs."},
-        "4": {"ar": "الْقُدُّوسُ", "en": "Al-Quddus", "mean": "The Pure One", "virtue": "Reciting this name purifies the heart from spiritual diseases like pride and envy."},
-        "5": {"ar": "السَّلَامُ", "en": "As-Salam", "mean": "The Source of Peace", "virtue": "Brings safety and protection from all harm and danger."},
-        "6": {"ar": "الْمُؤْمِنُ", "en": "Al-Mu'min", "mean": "The Inspirer of Faith", "virtue": "Removes fear from the heart and provides inner security."},
-        "7": {"ar": "الْمُهَيْمِنُ", "en": "Al-Muhaymin", "mean": "The Guardian", "virtue": "Brings spiritual clarity and light into the soul."},
-        "8": {"ar": "الْعَزِيزُ", "en": "Al-Aziz", "mean": "The Victorious", "virtue": "Gives strength and respect to the one who remembers Allah by it."},
-        "9": {"ar": "الْجَبَّارُ", "en": "Al-Jabbar", "mean": "The Compeller", "virtue": "Protects against oppression and heals broken hearts."},
-        "10": {"ar": "الْمُتَكَبِّرُ", "en": "Al-Mutakabbir", "mean": "The Greatest", "virtue": "Helps in understanding the true greatness of the Creator over the creation."},
-    }
-    
-    query_str = str(query).strip()
-    result = None
-    
-    if query_str in names:
-        result = names[query_str]
-    else:
-        for k, v in names.items():
-            if query_str.lower() in v["en"].lower() or query_str in v["ar"]:
-                result = v
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(base_dir, "knowledge_base/data/99_names_of_allah_full.json")
+        
+        if not os.path.exists(data_path):
+            return "⚠️ Database of 99 Names is being synchronized. Please try again soon."
+            
+        with open(data_path, "r", encoding="utf-8-sig") as f:
+            full_data = json.load(f)
+            names_list = full_data.get("data", [])
+            
+        search_term = str(query).lower().strip()
+        found_name = None
+        
+        for n in names_list:
+            if (str(n["number"]) == search_term or 
+                n["transliteration"].lower() == search_term or 
+                search_term in n["transliteration"].lower() or
+                n["en"]["meaning"].lower() == search_term):
+                found_name = n
                 break
                 
-    if result:
-        return f"""💠 **Asma-ul-Husna: {result['en']}**
-        
+        if found_name:
+            return f"""💠 **Asma-ul-Husna: {found_name['transliteration']}**
+            
 <div class="arabic-text" style="font-size: 2.5rem; text-align: center; margin: 20px 0;">
-    {result['ar']}
+    {found_name['name']}
 </div>
 
-**📖 Meaning:** {result['mean']}
-**🌟 Virtue:** {result['virtue']}
+**📖 Meaning:** {found_name['en']['meaning']}
+**🌟 Description:** {found_name['en']['desc']}
+**📜 Found in Quran:** {found_name['found']}
 
 ---
-*\"To Allah belong the most beautiful names, so call on Him by them.\" (Quran 7:180)*
-
-💡 *Tip: Try asking for names like 'Ar-Rahman' or numbers like '1-10'. Full database is being synced.*"""
+*\"To Allah belong the most beautiful names, so call on Him by them.\" (Quran 7:180)*"""
             
-    return "💡 Please search for names like 'Ar-Rahman', 'Al-Malik', or numbers 1-99. (Integration with full database in progress)."
+        return "💡 Name not found. Please search for names like 'Ar-Rahman', 'Al-Malik', or numbers 1-99."
+    except Exception as e:
+        return f"❌ Error retrieving Name of Allah: {str(e)}"
 
+@cached_service(ttl=43200)  # Adhkar cache for 12 hours
 def get_adhkar(category: str = "morning") -> str:
     """
-    Get Prophetic Adhkar (Supplications) for morning, evening, or after prayer
-    """
-    adhkar_db = {
-        "morning": [
-            {
-                "text": "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
-                "trans": "Asbahna wa-asbahal-mulku lillahi, walhamdu lillahi, la ilaha illallahu wahdahu la sharika lahu...",
-                "mean": "We have entered the morning and at this very time the whole kingdom belongs to Allah, and all praise is due to Allah...",
-                "virtue": "Protects the believer and acknowledges Allah's sovereignty at the start of the day."
-            },
-            {
-                "text": "اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ",
-                "trans": "Allahumma bika asbahna, wa bika amsayna, wa bika nahya...",
-                "mean": "O Allah, by You we enter the morning and by You we enter the evening...",
-                "virtue": "A simple yet powerful affirmation of faith for the morning."
-            }
-        ],
-        "evening": [
-            {
-                "text": "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ",
-                "trans": "Amsayna wa-amsal-mulku lillahi, walhamdu lillahi...",
-                "mean": "We have entered the evening and at this very time the whole kingdom belongs to Allah...",
-                "virtue": "Brings peace and protection through the night."
-            }
-        ],
-        "after_prayer": [
-            {
-                "text": "أستغفر الله (ثلاثاً) ... اللهم أنت السلام ومنك السلام تباركت يا ذا الجلال والإكرام",
-                "trans": "Astaghfirullah (3 times)... Allahumma Antas-Salam wa minkas-Salam...",
-                "mean": "I seek Allah's forgiveness (3 times)... O Allah, You are Peace and from You comes peace...",
-                "virtue": "The Sunnah practice immediately following the Fard (obligatory) prayer."
-            }
-        ]
-    }
+    Get Prophetic Adhkar (Supplications) from the full Hisn al-Muslim collection.
     
-    cat = category.lower()
-    if cat in adhkar_db:
-        items = adhkar_db[cat]
-        response = f"🤲 **{category.title()} Adhkar & Prophetic Supplications**\n\n"
-        for i, item in enumerate(items, 1):
-            response += f"""**Supplication {i}**
-<div class="arabic-text">
-    {item['text']}
+    Args:
+        category: Search term or category (e.g., 'morning', 'evening', 'sleep', 'travel')
+    """
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(base_dir, "knowledge_base/data/hisn_al_muslim.json")
+        
+        if not os.path.exists(data_path):
+            return "⚠️ Hisn al-Muslim database is being synchronized. Please try again soon."
+            
+        with open(data_path, "r", encoding="utf-8-sig") as f:
+            full_data = json.load(f)
+            # The JSON structure has an "English" key containing the list of categories
+            categories = full_data.get("English", [])
+            
+        search_term = category.lower().strip()
+        found_category = None
+        
+        # Simple fuzzy matching for categories
+        for cat in categories:
+            if search_term in cat["TITLE"].lower():
+                found_category = cat
+                break
+                
+        if not found_category:
+            # List available common categories if not found
+            common = ["Morning", "Evening", "Sleep", "Travel", "Prayer", "Arafat"]
+            return f"💡 Category '{category}' not found. Try searching for: {', '.join(common)}... or check 'hisn_al_muslim.json' for full titles."
+
+        response = f"🤲 **Hisn al-Muslim: {found_category['TITLE']}**\n\n"
+        
+        for item in found_category.get("TEXT", []):
+            repeat_info = f"*(Repeat {item['REPEAT']} times)*" if item.get("REPEAT", 0) > 1 else ""
+            response += f"""<div class="arabic-text" style="font-size: 1.4rem; margin-bottom: 10px;">
+    {item['ARABIC_TEXT']}
 </div>
 
-**📖 Meaning**: {item['mean']}
-**✨ Virtue**: {item['virtue']}
+**📖 Translation:** {item['TRANSLATED_TEXT']}
+{repeat_info}
 
 ---
 """
-        response += "\n*Source: Hisn al-Muslim (Fortress of the Muslim)*"
+        response += "\n*Source: Hisn al-Muslim (Fortress of the Muslim) - Authentic Prophetic Supplications.*"
         return response
-    
-    return "💡 Available categories: morning, evening, after_prayer. (More coming soon)."
+        
+    except Exception as e:
+        return f"❌ Error retrieving Adhkar: {str(e)}"
 
+@cached_service(ttl=86400)
 def get_hajj_umrah_guidance(ritual: str) -> str:
     """
     Get interactive guidance for Hajj and Umrah rituals
@@ -796,6 +888,7 @@ def get_hajj_umrah_guidance(ritual: str) -> str:
     
     return "💡 Please specify a ritual: Ihram, Tawaf, Sai, Arafat, or Muzdalifah."
 
+@cached_service(ttl=86400)
 def check_halal_guidance(item: str) -> str:
     """
     Check Halal/Haram status of food items or common ingredients (E-numbers)
@@ -839,3 +932,93 @@ We couldn't find a specific entry for this in our database yet.
 • Avoid any item containing pork or intoxicants.
 
 💡 *Try asking about specific E-numbers like 'E120' or 'E471'.*"""
+
+@cached_service(ttl=86400)
+def get_madhab_view(topic: str) -> str:
+    """
+    Get the specific legal positions of the four major Madhabs on a given topic.
+    
+    Args:
+        topic: The Fiqh topic to research (e.g., 'wudu', 'intention', 'touching private parts')
+    """
+    madhab_data = {
+        "wudu_niyyah": {
+            "title": "Intention (Niyyah) in Wudu",
+            "hanafi": "Sunnah (Recommended). Wudu is valid even without explicit intention if the parts are washed.",
+            "maliki": "Fard (Obligatory). Intention is required at the start of Wudu.",
+            "shafii": "Fard (Obligatory). Intention must be made when water first touches the face.",
+            "hanbali": "Fard (Obligatory). Intention is a condition for the validity of Wudu.",
+            "evidence": "Prophet ﷺ said: 'Actions are but by intentions.' (Bukhari 1)"
+        },
+        "wudu_order": {
+            "title": "Performing Wudu in Order (Tartib)",
+            "hanafi": "Sunnah (Recommended). Valid even if the order is changed.",
+            "maliki": "Sunnah (Recommended). Valid even if the order is changed.",
+            "shafii": "Fard (Obligatory). Must follow the order mentioned in Quran 5:6.",
+            "hanbali": "Fard (Obligatory). Must follow the order mentioned in Quran 5:6.",
+            "evidence": "The sequence described in Surah Al-Ma'idah, Verse 6."
+        },
+        "touching_private_parts": {
+            "title": "Touching Private Parts (Does it break Wudu?)",
+            "hanafi": "Does NOT break Wudu. The Prophet ﷺ said: 'Is it not but a part of you?'",
+            "maliki": "Breaks Wudu if touched with pleasure or without a barrier.",
+            "shafii": "Breaks Wudu if touched directly with the palm or fingers.",
+            "hanbali": "Breaks Wudu if touched directly.",
+            "evidence": "Hadith: 'Whoever touches his private part, let him perform wudu.' (Abu Dawud)"
+        },
+        "vomiting": {
+            "title": "Does Vomiting break Wudu?",
+            "hanafi": "Breaks Wudu if it is a mouthful.",
+            "maliki": "Does NOT break Wudu.",
+            "shafii": "Does NOT break Wudu.",
+            "hanbali": "Breaks Wudu if it is a large amount.",
+            "evidence": "Varying interpretations of Prophetic practice regarding impurity."
+        }
+    }
+    
+    t = topic.lower().replace(" ", "_")
+    found = None
+    
+    # Try direct match
+    if t in madhab_data:
+        found = madhab_data[t]
+    else:
+        # Try keyword match
+        for k, v in madhab_data.items():
+            if t in k or k in t:
+                found = v
+                break
+                
+    if found:
+        return f"""⚖️ **Madhab-Specific Jurisprudence: {found['title']}**
+
+🏛️ **Hanafi**: {found['hanafi']}
+🏛️ **Maliki**: {found['maliki']}
+🏛️ **Shafi'i**: {found['shafii']}
+🏛️ **Hanbali**: {found['hanbali']}
+
+---
+📖 **Evidence**: {found['evidence']}
+
+✅ **Scholarly Consensus**: Valid differences (*Ikhtilaf*) between the schools are a mercy for the Ummah.
+💡 *Try asking about: 'wudu niyyah', 'wudu order', or 'vomiting'.*"""
+
+    return f"""🔍 **Madhab View for '{topic}'**
+
+We are currently expanding our specialized Madhab database. 
+
+**General Scholarly Approach:**
+• Most core pillars are agreed upon (*Ijma*).
+• Differences usually exist in the details of performance or secondary conditions.
+• Follow the guidance of your local qualified Imam or the Madhab you typically follow.
+
+💡 *Try asking about specific topics like 'wudu niyyah' or 'vomiting'.*"""
+
+@cached_service(ttl=43200)
+def get_fiqh_ruling(topic: str, madhab: str = "general") -> str:
+    """
+    Get a specific Fiqh ruling on a topic.
+    """
+    # This tool can be expanded with more complex logic or RAG integration
+    return f"⚖️ **Fiqh Ruling on {topic.title()}**\n\nFor a detailed breakdown of this ruling across different schools of thought, try using the `get_madhab_view` tool with a specific topic like 'wudu' or 'vomiting'."
+

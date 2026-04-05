@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islamic AI Widget Test Page</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .content {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 { color: #012B25; }
+        p { color: #666; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+    <div class="content">
+        <h1>Welcome to My Website</h1>
+        <p>This is a test page for the <strong>Islamic AI Agent Widget</strong>. You should see a floating gold bubble in the bottom right corner of the screen.</p>
+        <p>Click it to open the scholarly assistant.</p>
+    </div>
+
+    <!-- The Islamic AI Widget Integration -->
+    <!-- In production, the src would be a CDN link -->
+    <script 
+      src="./dist/islamic-ai-widget.js" 
+      data-api-url="http://localhost:5001"
+      defer>
+    </script>
+
+</body>
+</html>

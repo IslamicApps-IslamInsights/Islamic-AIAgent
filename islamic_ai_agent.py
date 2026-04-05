@@ -5,36 +5,14 @@ A comprehensive Islamic AI assistant with knowledge base and real-time features
 
 import os
 import asyncio
+from datetime import datetime
 from typing import Optional
 from dotenv import load_dotenv
 
-import agentscope
-# AgentScope imports
-from agentscope.agents import ReActAgent, UserAgent
-from agentscope.models import OpenAIChatWrapper
-from agentscope.formatters import OpenAIFormatter
-from agentscope.memory import TemporaryMemory
-from agentscope.service import ServiceToolkit
-from agentscope.message import Msg
+# Agentscope imports will be deferred
 
 # Import our enhanced Islamic tools with dynamic knowledge base
-from enhanced_islamic_tools import (
-    get_quran_verse,
-    get_hadith,
-    get_dua,
-    get_prayer_times,
-    get_qibla_direction,
-    get_hijri_date,
-    get_islamic_guidance,
-    search_islamic_content,
-    get_daily_islamic_content,
-    get_surah_info,
-    get_name_of_allah,
-    get_adhkar,
-    get_hajj_umrah_guidance,
-    check_halal_guidance
-)
-from knowledge_base.local_knowledge_tools import search_local_knowledge
+# Tool imports will be deferred
 
 # Load environment variables
 load_dotenv()
@@ -49,41 +27,54 @@ class IslamicAIAgent:
         Args:
             api_key: OpenAI API key (optional, can be set in .env file)
         """
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY in .env file or pass as parameter.")
+      
+        # Agentscope global context will be initialized in setup_agent
+        import agentscope
         
-        # Initialize Agentscope global context
-        agentscope.init(model_configs=[{
-            "config_name": "openai_cfg",
-            "model_type": "openai_chat",
-            "model_name": "gpt-4o-mini",
-            "api_key": self.api_key
-        }])
+        self.model_params = None
         
+        self.api_key = api_key or os.getenv('GOOGLE_API_KEY') or os.getenv('OPENAI_API_KEY')
+        self.agent = None
+        self.user = None
+        self.toolkit = None
+        self.model_config = None
+        self.formatter = None
         self.setup_agent()
     
     def setup_agent(self):
         """Set up the AgentScope Islamic AI agent"""
         
         # Create toolkit with Islamic tools
-        self.toolkit = ServiceToolkit()
+        print("  [Noor] Loading AgentScope components...")
+        from agentscope.agents import ReActAgent
+        from agentscope.service import ServiceToolkit as Toolkit
+        from agentscope.formatters import GeminiFormatter as GeminiChatFormatter
+        print("  [Noor] Setting up toolkit...")
+        self.toolkit = Toolkit()
+        
+        formatter = GeminiChatFormatter()
+        
+        # Lazy imports for tools
+        from enhanced_islamic_tools import (
+            get_quran_verse, get_hadith, get_dua, get_prayer_times,
+            get_qibla_direction, get_hijri_date, get_islamic_guidance,
+            search_islamic_content, get_daily_islamic_content, get_surah_info,
+            get_name_of_allah, get_adhkar, get_hajj_umrah_guidance,
+            check_halal_guidance
+        )
         
         # Register enhanced Islamic knowledge tools with dynamic API integration
-        self.toolkit.add(get_quran_verse)
-        self.toolkit.add(get_hadith)
-        self.toolkit.add(get_dua)
-        self.toolkit.add(get_prayer_times)
-        self.toolkit.add(get_qibla_direction)
-        self.toolkit.add(get_hijri_date)
-        self.toolkit.add(get_islamic_guidance)
-        self.toolkit.add(search_islamic_content)
-        self.toolkit.add(get_daily_islamic_content)
-        self.toolkit.add(get_surah_info)
-        self.toolkit.add(get_name_of_allah)
-        self.toolkit.add(get_adhkar)
-        self.toolkit.add(get_hajj_umrah_guidance)
-        self.toolkit.add(check_halal_guidance)
+        print("  [Noor] Registering tool functions...")
+        from llm_provider import register_islamic_tool
+        for tool_fn in [
+            get_quran_verse, get_hadith, get_dua, get_prayer_times,
+            get_qibla_direction, get_hijri_date, get_islamic_guidance,
+            search_islamic_content, get_daily_islamic_content, get_surah_info,
+            get_name_of_allah, get_adhkar, get_hajj_umrah_guidance,
+            check_halal_guidance
+        ]:
+            register_islamic_tool(self.toolkit, tool_fn)
+        print("  [Noor] Tool functions registered.")
         
         # Islamic AI system prompt
         system_prompt = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
@@ -136,9 +127,17 @@ You are an Islamic AI Assistant from TheIslamInsights.com, designed to provide a
 Remember: You are here to serve Allah by helping His servants learn and practice Islam correctly."""
 
         # Create the Islamic AI agent
+        print("  [Noor] Initializing agentscope agents...")
+        from agentscope.agents import ReActAgent, UserAgent
+        
+        # Initialize AgentScope via unified provider
+        from llm_provider import get_agentscope_model
+        model_config_name = get_agentscope_model()
+        print(f"  [Noor] Model config registered")
+            
         self.agent = ReActAgent(
             name="Noor",
-            model_config_name="openai_cfg",
+            model_config_name=model_config_name, 
             service_toolkit=self.toolkit,
             sys_prompt=system_prompt,
         )
@@ -194,6 +193,7 @@ How may I assist you in your Islamic journey today? 🌟"""
         """Start the conversation with the Islamic AI agent"""
         
         # Welcome message
+        from agentscope.message import Msg
         welcome_msg = Msg(
             name="Noor",
             content=self._get_dynamic_welcome_message(),
@@ -211,6 +211,7 @@ How may I assist you in your Islamic journey today? 🌟"""
                 msg = await self.user(msg)
                 
                 # Check for exit
+                from agentscope.message import Msg
                 if msg.get_text_content().lower() in ['exit', 'quit', 'bye']:
                     farewell_msg = Msg(
                         name="Noor",
@@ -237,56 +238,150 @@ Visit TheIslamInsights.com for more Islamic knowledge and guidance.""",
                 print(f"\n❌ Error: {e}")
                 print("Please try again or type 'exit' to quit.")
 
-    def process_message_with_tools(self, message: str, user_gender: str = "not_specified") -> str:
+    def process_message_with_tools(self, message: str, user_gender: str = "not_specified", latitude: float = None, longitude: float = None) -> str:
         """
-        Process message with local-first knowledge priority.
+        Process message with local-first knowledge priority and AI synthesis.
         """
         # 1. Local Knowledge Base Priority (RAG)
-        local_result = search_local_knowledge(message)
-        if local_result and "❌ No relevant information" not in local_result and "❌ Local knowledge base" not in local_result:
-            return local_result
+        from knowledge_base.local_knowledge_tools import search_local_knowledge
+        local_context = search_local_knowledge(message)
+        has_local_data = local_context and "❌ No relevant information" not in local_context and "❌ Local knowledge base" not in local_context
 
-        # 2. Dynamic Tool Processing
-        message_lower = message.lower()
-        from islamic_config import islamic_config
+        # 1.5 Real-time Metadata Injection
+        now = datetime.now()
+        current_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
         
-        # Determine the best tool
-        if any(word in message_lower for word in islamic_config.get_keywords('quran')):
-            from web_api import get_quran_verse, extract_verse_reference
-            return get_quran_verse(extract_verse_reference(message))
+        # Try to get Hijri date for the prompt
+        try:
+            from enhanced_islamic_tools import get_hijri_date
+            hijri_info = get_hijri_date(latitude=latitude, longitude=longitude)
+        except Exception:
+            hijri_info = "Hijri date unavailable"
+
+        context_str = f"LOCAL KNOWLEDGE CONTEXT:\n{local_context}\n" if has_local_data else "No specific local documents found for this query."
         
-        elif any(word in message_lower for word in islamic_config.get_keywords('hadith')):
-            from web_api import get_hadith, extract_topic
-            return get_hadith(extract_topic(message))
-            
-        elif any(word in message_lower for word in islamic_config.get_keywords('prayer')):
-            return islamic_config.get_response_template('location_required', service='prayer times')
-            
-        elif any(word in message_lower for word in islamic_config.get_keywords('qibla')):
-            return islamic_config.get_response_template('location_required', service='Qibla direction')
-            
-        elif any(word in message_lower for word in islamic_config.get_keywords('dua')):
-            from web_api import get_dua, extract_occasion
-            return get_dua(extract_occasion(message))
-            
-        elif any(word in message_lower for word in islamic_config.get_keywords('date')):
-            return get_hijri_date()
-            
-        elif any(word in message_lower for word in islamic_config.get_keywords('daily')):
-            return get_daily_islamic_content()
-            
-        elif any(word in message_lower for word in islamic_config.get_keywords('guidance')):
-            from web_api import extract_topic
-            topic = extract_topic(message)
-            # Factor in gender for guidance if applicable
-            if user_gender.lower() == 'female' and any(word in topic.lower() for word in ['prayer', 'worship', 'purity']):
-                message += " from a female perspective"
-            return get_islamic_guidance(topic)
+        synthesis_prompt = f"""
+        REAL-TIME METADATA:
+        - Current Gregorian Date/Time: {current_time_str}
+        - Current Hijri/Islamic Date: {hijri_info}
+        - User Location: {f'Lat: {latitude}, Lng: {longitude}' if latitude else 'Not provided'}
         
-        # 3. Fallback to LLM Agent if no specific tool matches
-        # For simple web queries we return the welcome/help message or a search prompt
-        agent_name = islamic_config.get_agent_name('single')
-        return islamic_config.get_response_template('welcome', agent_name=agent_name)
+        User Message: {message}
+        User Gender: {user_gender}
+        
+        {context_str}
+        
+        INSTRUCTIONS:
+        1. If local knowledge context is provided, prioritize it and synthesize a beautiful, scholarly response.
+        2. **GROUND TRUTH PRIORITY**: If the context contains 'ISLAMIC GROUND TRUTH ESSENTIALS', treat it as the absolute source of truth.
+        3. **FORMATTING RULES (STRICT)**:
+           - **NEVER** use '###' or any other markdown headers.
+           - **NEVER** use the '>' blockquote symbol.
+           - **NEVER** use '*' for bullet points; use '•' (bullets) or '1.' (numbered lists) instead.
+           - **NEVER** use technical markers like '<<', '>>', or raw JSON keys.
+           - Use ****Bold text**** ONLY for important section titles or emphasis.
+           - Use clear double-paragraph breaks for readability.
+           - Ensure the response is "Best Presentable", "Premium", and "User Centric".
+        4. ALWAYS maintain the "Noor" persona (kind, patient, scholarly).
+        5. Cite your sources clearly using the **Scholarly Reference** provided in the context (e.g., **The Holy Quran [17:78]**). Do not use technical filenames like .txt or .json.
+        6. If you cannot find authentic information, say so respectfully.
+        """
+        
+        try:
+            # Use native GenAI SDK for more robust synthesis (bypasses AgentScope 404 issues)
+            from google import genai
+            native_client = genai.Client(api_key=self.api_key)
+            native_model = "models/gemini-flash-latest"
+            
+            response = native_client.models.generate_content(
+                model=native_model,
+                contents=synthesis_prompt,
+                config={
+                    "temperature": 0.3,
+                    "top_p": 0.95,
+                    "max_output_tokens": 2048,
+                }
+            )
+            
+            if response and response.text:
+                return response.text
+            else:
+                return "🎓 Scholar Response Synthesized: (No content generated)"
+        except Exception as e:
+            print(f"Error in native AI synthesis: {e}")
+            # Fallback to local context if even native fails
+            if has_local_data:
+                return local_context
+            return "Assalamu Alaikum. I encountered an error while processing your request. Please try again. 🤲"
+
+    def process_multimodal_message(self, message: str, file_data: str, mime_type: str, user_gender: str = 'not_specified', latitude: float = None, longitude: float = None) -> str:
+        """
+        Process a message with an attached file or audio using Gemini's multimodal capabilities
+        """
+        import base64
+        from google import genai
+        from google.genai import types
+        
+        # Get dynamic context (time, hijri, etc.)
+        current_time = datetime.now()
+        current_time_str = current_time.strftime("%A, %B %d, %Y (%I:%M %p)")
+        
+        # Determine if it's audio or document
+        is_audio = mime_type.startswith('audio/')
+        file_type_desc = "Audio Recording" if is_audio else "Attached Document"
+        
+        synthesis_prompt = f"""
+        You are "Noor," a kind, patient, and highly knowledgeable Islamic AI Scholar.
+        A user has sent you a message along with an {file_type_desc}.
+        
+        CONTEXT:
+        - Current Gregorian Date/Time: {current_time_str}
+        - User Message: {message}
+        - User Gender: {user_gender}
+        - User Location: {f'Lat: {latitude}, Lng: {longitude}' if latitude else 'Not provided'}
+        
+        INSTRUCTIONS:
+        1. Analyze the attached {file_type_desc} carefully in the context of Islamic knowledge.
+        2. If it is an audio recording, listen for the user's question or recitation and provide scholarly guidance.
+        3. If it is a document (PDF/Image), extract relevant Islamic text or concepts and provide insights.
+        4. **FORMATTING RULES (STRICT)**:
+           - **NEVER** use '###' or any other markdown headers.
+           - **NEVER** use the '>' blockquote symbol.
+           - **NEVER** use '*' for bullet points; use '•' instead.
+           - Use ****Bold text**** ONLY for emphasis.
+        5. ALWAYS maintain the "Noor" persona.
+        """
+        
+        try:
+            native_client = genai.Client(api_key=self.api_key)
+            native_model = "models/gemini-1.5-flash" # Use 1.5 for multimodal
+            
+            # Prepare multimodal content
+            # file_data is expected to be base64 string
+            raw_data = base64.b64decode(file_data)
+            
+            content_parts = [
+                synthesis_prompt,
+                types.Part(inline_data=types.Blob(data=raw_data, mime_type=mime_type))
+            ]
+            
+            response = native_client.models.generate_content(
+                model="models/gemini-flash-latest",
+                contents=content_parts,
+                config={
+                    "temperature": 0.3,
+                    "top_p": 0.95,
+                    "max_output_tokens": 2048,
+                }
+            )
+            
+            if response and response.text:
+                return response.text
+            else:
+                return f"🎓 Scholar Analysis: I have processed your {file_type_desc} but could not generate a text response. Please try describing it."
+        except Exception as e:
+            print(f"Error in multimodal synthesis: {e}")
+            return f"Assalamu Alaikum. I encountered an error while analyzing your {file_type_desc}. Please ensure the file format is supported. 🤲"
 
 def main():
     """Main function to run the Islamic AI Agent"""

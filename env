@@ -1,0 +1,11 @@
+#!/bin/sh
+# add binaries to PATH if they aren't added yet
+# affix colons on either side of $PATH to simplify matching
+case ":${PATH}:" in
+    *:"$HOME/Documents/Latest_Codes/Islamic work/Islamic AI Agent":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed binary needs to be overridden
+        export PATH="$HOME/Documents/Latest_Codes/Islamic work/Islamic AI Agent:$PATH"
+        ;;
+esac

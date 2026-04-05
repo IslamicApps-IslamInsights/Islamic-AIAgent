@@ -1,484 +1,746 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, Book, Clock, Compass, Heart, Moon, Sun, Star, MapPin, Calendar, Volume2, Search, User, Settings, BookOpen, Mic, Globe, Shield, Zap, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Send, Star, MessageSquare,
+  Mic, Paperclip, Moon, Book, Scroll, Sun,
+  LayoutGrid, Share2, Copy, PanelLeft, MapPin, Compass
+} from 'lucide-react';
+import { twMerge } from 'tailwind-merge';
 
-const IslamicAIAgent = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\n\nAssalamu Alaikum wa Rahmatullahi wa Barakatuh! 🕌\n\nWelcome to your Islamic AI Assistant from TheIslamInsights.com. I provide authentic Islamic guidance based on Quran and Sunnah.\n\n✨ **How I can help:**\n📖 Quranic verses & explanations\n🕐 Prayer guidance & times\n🤲 Duas from Quran & Sunnah\n⚖️ Fiqh rulings & Islamic law\n🌙 Islamic calendar & events\n📚 Authentic Hadith collections\n💡 Daily Islamic reminders\n\n*Note: For complex matters, consult qualified scholars.*\n\nHow may I assist you today? 🌟",
-      sender: 'agent',
-      timestamp: new Date(),
-      type: 'welcome'
-    }
-  ]);
-  
-  const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [selectedCategory, setSelectedCategory] = useState('general');
-  const messagesEndRef = useRef(null);
-
-  // Memoized Hijri date calculation - only recalculates when date changes
-  const hijriDate = useMemo(() => {
-    const hijriMonths = [
-      'Muharram', 'Safar', "Rabi' al-Awwal", "Rabi' al-Thani",
-      'Jumada al-Awwal', 'Jumada al-Thani', 'Rajab', "Sha'ban",
-      'Ramadan', 'Shawwal', "Dhu al-Qi'dah", 'Dhu al-Hijjah'
-    ];
-    
-    // Get current Gregorian date
-    const today = new Date();
-    const gregorianYear = today.getFullYear();
-    const gregorianMonth = today.getMonth() + 1; // JavaScript months are 0-based
-    const gregorianDay = today.getDate();
-    
-    // Convert to Julian Day Number
-    let a = Math.floor((14 - gregorianMonth) / 12);
-    let y = gregorianYear - a;
-    let m = gregorianMonth + 12 * a - 3;
-    let jd = gregorianDay + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + 1721119;
-    
-    // Convert Julian Day to Hijri (Islamic calendar)
-    // Using the standard algorithm for Hijri conversion
-    let l = jd - 1948440 + 10632;
-    let n = Math.floor((l - 1) / 10631);
-    l = l - 10631 * n + 354;
-    let j = Math.floor(((10985 - l) / 5316)) * Math.floor((50 * l) / 17719) + Math.floor(l / 5670) * Math.floor((43 * l) / 15238);
-    l = l - Math.floor(((30 - j) / 15)) * Math.floor((17719 * j) / 50) - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29;
-    
-    let hijriMonth = Math.floor((24 * l) / 709);
-    let hijriDay = l - Math.floor((709 * hijriMonth) / 24);
-    let hijriYear = 30 * n + j - 30;
-    
-    // Ensure month is within valid range (1-12)
-    if (hijriMonth < 1) {
-      hijriMonth = 12;
-      hijriYear--;
-    } else if (hijriMonth > 12) {
-      hijriMonth = 1;
-      hijriYear++;
-    }
-    
-    return `${hijriDay} ${hijriMonths[hijriMonth - 1]} ${hijriYear} AH`;
-  }, [currentTime.toDateString()]); // Only recalculate when date changes
-
-  // Helper function for backward compatibility
-  const getHijriDate = () => hijriDate;
-
-  // Categories
-  const categories = [
-    { id: 'general', name: 'General', icon: MessageCircle, color: 'text-blue-600' },
-    { id: 'prayer', name: 'Salah', icon: Clock, color: 'text-green-600' },
-    { id: 'quran', name: 'Quran', icon: Book, color: 'text-purple-600' },
-    { id: 'hadith', name: 'Hadith', icon: Star, color: 'text-yellow-600' },
-    { id: 'fiqh', name: 'Fiqh', icon: Settings, color: 'text-red-600' },
-    { id: 'dua', name: 'Dua', icon: Heart, color: 'text-pink-600' }
-  ];
-
-  // Quick actions
-  const quickActions = [
-    { icon: Clock, label: 'Prayer Times', action: 'prayer_times', color: 'bg-blue-500' },
-    { icon: Book, label: 'Daily Verse', action: 'daily_verse', color: 'bg-green-500' },
-    { icon: Star, label: 'Daily Hadith', action: 'daily_hadith', color: 'bg-yellow-500' },
-    { icon: Heart, label: 'Morning Dua', action: 'morning_dua', color: 'bg-pink-500' },
-    { icon: Compass, label: 'Qibla', action: 'qibla', color: 'bg-purple-500' },
-    { icon: User, label: 'Ask Scholar', action: 'ask_scholar', color: 'bg-red-500' }
-  ];
-
-  // Response content
-  const dailyContent = {
-    prayer_times: {
-      text: "🕐 **Prayer Times Guide:**\n\n**Five Daily Prayers:**\n\n🌅 **Fajr** - Dawn prayer (before sunrise)\n• 2 Sunnah + 2 Fard rakats\n\n☀️ **Dhuhr** - Midday prayer\n• 4 Sunnah + 4 Fard + 2 Sunnah\n\n🌤️ **Asr** - Afternoon prayer\n• 4 Sunnah + 4 Fard\n\n🌅 **Maghrib** - Evening prayer (after sunset)\n• 3 Fard + 2 Sunnah\n\n🌙 **Isha** - Night prayer\n• 4 Sunnah + 4 Fard + 2 Sunnah + 3 Witr\n\n📱 **For exact local times:**\n• IslamicFinder.org\n• Muslim Pro app\n• Your local mosque\n\n*Prayer times vary by location and season.*",
-      type: 'prayer'
-    },
-    daily_verse: {
-      text: "📖 **Verse of the Day - Surah Al-Baqarah (2:152):**\n\nفَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ\n\n**Transliteration:**\n*Fadhkuruni adhkurkum washkuru li wa la takfurun*\n\n**Translation:**\n*\"So remember Me; I will remember you. And be grateful to Me and do not deny Me.\"*\n\n💭 **Reflection:**\nAllah promises to remember those who remember Him. This is an incredible honor - the Creator of the universe remembers us when we remember Him.\n\n🎯 **Today's Action:**\nMake dhikr throughout your day and notice Allah's blessings.",
-      type: 'verse'
-    },
-    daily_hadith: {
-      text: "⭐ **Hadith of the Day:**\n\n**Sahih al-Bukhari (6018)**\n\n*The Prophet (ﷺ) said:*\n\n**\"The believers in their mutual kindness, compassion, and sympathy are just one body - when a limb suffers, the whole body responds to it with wakefulness and fever.\"**\n\n📚 **Lesson:**\nThis hadith teaches us about the unity of the Muslim Ummah. We should care for our fellow Muslims as we care for ourselves.\n\n🎯 **Action:**\nCheck on a fellow Muslim today and offer help if needed.\n\n✅ **Authenticity:** Sahih (Sound)",
-      type: 'hadith'
-    },
-    morning_dua: {
-      text: "🌅 **Morning Duas Collection:**\n\n**1. Upon Waking:**\n\"الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ\"\n\n*Alhamdulillahi alladhi ahyana ba'da ma amatana wa ilayhi an-nushur*\n\n*\"All praise to Allah who gave us life after death, and to Him is the resurrection.\"*\n\n**2. Morning Protection:**\n\"أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ\" (3x)\n\n*A'udhu bikalimat Allahi at-tammati min sharri ma khalaq*\n\n*\"I seek refuge in Allah's perfect words from the evil He created.\"*\n\n**3. For Guidance:**\n\"رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ\"\n\n*Rabbana atina fi'd-dunya hasanatan wa fi'l-akhirati hasanatan wa qina 'adhab an-nar*\n\n*\"Our Lord, give us good in this world and the next, and save us from the Fire.\"*",
-      type: 'dua'
-    },
-    qibla: {
-      text: "🧭 **Qibla Direction Guide:**\n\n📍 **What is Qibla?**\nThe direction toward the Kaaba in Mecca that Muslims face during prayer.\n\n🌍 **General Directions by Region:**\n• **Europe & North America:** Southeast\n• **East Asia:** West to Southwest\n• **Africa:** Northeast to East\n• **Australia:** Northwest\n\n📱 **Accurate Methods:**\n1. GPS-based Qibla apps\n2. IslamicFinder.org Qibla locator\n3. Physical Qibla compass\n4. Ask your local mosque\n\n⚠️ **Important Notes:**\n• These are general directions only\n• Use precise tools for exact direction\n• Some apps work offline\n• Verify with multiple sources\n\n🤲 **Dua when facing Qibla:**\n*\"Wajjahtu wajhiya lilladhi fatara as-samawati wal-arda...\"*",
-      type: 'qibla'
-    },
-    islamic_calendar: {
-      text: "📅 **Islamic Calendar Information:**\n\n🌙 **Current Hijri Date:** " + getHijriDate() + "\n\n📝 **Upcoming Islamic Events:**\n\n• **12 Rabi' al-Awwal:** Mawlid an-Nabi (ﷺ)\n• **27 Rajab:** Isra and Mi'raj Night\n• **15 Sha'ban:** Laylat al-Bara'ah\n• **Ramadan:** Month of Fasting\n• **Eid al-Fitr:** Festival after Ramadan\n• **10 Dhul Hijjah:** Eid al-Adha\n\n🗓️ **Sacred Months:**\n1. Muharram (1st month)\n2. Rajab (7th month)\n3. Dhul Qi'dah (11th month)\n4. Dhul Hijjah (12th month)\n\n💡 **Note:** Dates may vary by 1-2 days based on moon sighting in your region.\n\n📱 **Recommended:** Use Islamic calendar apps for accurate local dates.",
-      type: 'calendar'
-    }
-  };
-
-  // Enhanced response system
-  const getIslamicResponse = (message) => {
-    const lowerMsg = message.toLowerCase();
-    
-    // Specific Islamic topics
-    if (lowerMsg.includes('five pillars') || lowerMsg.includes('pillars of islam')) {
-      return "🕌 **The Five Pillars of Islam:**\n\n**1. Shahada (Declaration of Faith)**\n*\"La ilaha illa Allah, Muhammadur rasul Allah\"*\n*There is no god but Allah, Muhammad is His messenger*\n\n**2. Salah (Prayer)**\nFive daily prayers connecting us with Allah\n\n**3. Zakat (Charity)**\n2.5% of wealth annually to help the needy\n\n**4. Sawm (Fasting)**\nFasting during the month of Ramadan\n\n**5. Hajj (Pilgrimage)**\nPilgrimage to Mecca once in a lifetime if able\n\nThese form the foundation of Islamic practice.";
-    }
-    
-    if (lowerMsg.includes('allah') || lowerMsg.includes('who is allah')) {
-      return "☪️ **About Allah (SWT):**\n\nAllah is the One and Only God in Islam. The word 'Allah' means 'The God' in Arabic.\n\n**Beautiful Names (Asma al-Husna):**\n• Ar-Rahman - The Most Compassionate\n• Ar-Raheem - The Most Merciful\n• Al-Ghafoor - The Oft-Forgiving\n• As-Saboor - The Most Patient\n• Al-Wadud - The Most Loving\n\n**Quran says (112:1-4):**\n*\"Say: He is Allah, the One! Allah, the Eternal, Absolute; He begets not, nor is He begotten; And there is none like unto Him.\"*\n\nAllah is perfect, without partners or equals.";
-    }
-    
-    if (lowerMsg.includes('prophet') || lowerMsg.includes('muhammad')) {
-      return "🌟 **Prophet Muhammad (ﷺ):**\n\nMuhammad (peace be upon him) is the final Prophet and Messenger of Allah.\n\n**Key Facts:**\n• Born: 570 CE in Mecca\n• Received first revelation: Age 40\n• Known as: Al-Amin (The Trustworthy)\n• Mission: Guide humanity to worship Allah alone\n\n**His Character:**\n• Perfect example for humanity\n• Known for honesty and trustworthiness\n• Kind to all people and animals\n• Patient in difficulties\n• Forgiving to enemies\n\n**His Message:**\n*\"I have been sent to perfect good character.\"*\n\n**Follow His Example:**\nKindness, honesty, justice, patience, and gratitude.";
-    }
-    
-    if (lowerMsg.includes('prayer') || lowerMsg.includes('salah') || lowerMsg.includes('how to pray')) {
-      return "🕌 **Prayer (Salah) Guidance:**\n\n**Before Prayer:**\n• Perform Wudu (ablution)\n• Face Qibla (direction of Kaaba)\n• Make intention (Niyyah) in heart\n• Use clean place and proper dress\n\n**Prayer Steps:**\n1. **Takbir** - Say \"Allahu Akbar\" (hands to ears)\n2. **Qiyam** - Stand and recite Fatiha + Surah\n3. **Ruku** - Bow and say \"Subhana Rabbiyal Azeem\"\n4. **Sujud** - Prostrate and say \"Subhana Rabbiyal A'la\"\n5. **Tashahhud** - Sit and recite At-Tahiyyat\n6. **Taslim** - Turn head saying \"Assalamu alaikum\"\n\n**Five Daily Prayers:**\nFajr, Dhuhr, Asr, Maghrib, Isha\n\n💡 Focus on presence of heart (Khushu) during prayer.";
-    }
-    
-    if (lowerMsg.includes('quran') || lowerMsg.includes('quraan')) {
-      return "📖 **The Holy Quran:**\n\nThe Quran is the final revelation from Allah to humanity, revealed to Prophet Muhammad (ﷺ).\n\n**Key Facts:**\n• 114 chapters (Surahs)\n• 6,236 verses (Ayat)\n• Revealed over 23 years\n• Preserved in original Arabic\n• Final scripture for all mankind\n\n**Guidance for:**\n• Worship and faith\n• Moral conduct\n• Social justice\n• Personal development\n• Life after death\n\n**Benefits of Reading:**\n• Each letter earns 10 rewards\n• Spiritual guidance and healing\n• Connection with Allah\n• Peace and tranquility\n\n**Recommended:**\nRead daily with translation and reflection.";
-    }
-    
-    if (lowerMsg.includes('dua') || lowerMsg.includes('supplication')) {
-      return "🤲 **About Dua (Supplication):**\n\nDua is calling upon Allah, asking for His help, guidance, and mercy.\n\n**Types of Dua:**\n• Praise and gratitude\n• Seeking forgiveness\n• Asking for needs\n• Protection from harm\n• Guidance and wisdom\n\n**Best Times for Dua:**\n• Between Maghrib and Isha\n• Last third of the night\n• After obligatory prayers\n• While fasting\n• During rain\n\n**Etiquette of Dua:**\n• Start with praise of Allah\n• Send blessings on Prophet (ﷺ)\n• Be humble and sincere\n• Ask in a good state (with wudu)\n• End with 'Ameen'\n\n**Remember:** Allah answers all duas in His perfect wisdom and timing.";
-    }
-    
-    if (lowerMsg.includes('halal') || lowerMsg.includes('haram') || lowerMsg.includes('food')) {
-      return "🍽️ **Halal & Haram Foods:**\n\n**✅ HALAL (Permitted):**\n• All fruits and vegetables\n• Grains, nuts, legumes\n• Fish with scales\n• Chicken, beef, lamb (properly slaughtered)\n• Milk, cheese, honey\n\n**❌ HARAM (Forbidden):**\n• Pork and pork products\n• Alcohol and intoxicants\n• Blood of animals\n• Animals that died naturally\n• Carnivorous animals with fangs\n• Birds of prey with talons\n\n**Conditions for Halal Meat:**\n• Animal must be healthy\n• Slaughtered by Muslim/Christian/Jew\n• Name of Allah mentioned\n• Sharp knife used\n• Blood properly drained\n\n**When in Doubt:**\nAvoid questionable items and seek knowledge from reliable sources.";
-    }
-    
-    // Default helpful response
-    return `جزاك الله خيراً for your question!\n\nI'm here to provide Islamic guidance on:\n\n📖 **Quran & Hadith** - Verses, meanings, authentic sayings\n🕐 **Prayer & Worship** - Times, procedures, guidance\n🤲 **Duas & Dhikr** - Daily supplications\n⚖️ **Fiqh & Rulings** - Islamic law guidance\n🌙 **Islamic Events** - Calendar and occasions\n💡 **Daily Reminders** - Spiritual motivation\n\nFeel free to ask about any Islamic topic. I'll provide guidance based on Quran and authentic Sunnah.\n\nMay Allah guide us all. Ameen! 🤲`;
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-
-    const userMessage = {
-      id: messages.length + 1,
-      text: inputMessage,
-      sender: 'user',
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    const currentInput = inputMessage;
-    setInputMessage('');
-    setIsTyping(true);
-
-    try {
-      // Try to get response from Islamic AI backend
-      console.log('🔄 Sending request to Islamic AI backend:', currentInput);
-      const response = await fetch('http://localhost:5002/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentInput,
-          intent: detectIntent(currentInput),
-          user_preferences: {}
-        })
-      });
-      
-      console.log('📡 API Response status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Received AI response:', data.response.substring(0, 100) + '...');
-        const agentMessage = {
-          id: messages.length + 2,
-          text: data.response,
-          sender: 'agent',
-          timestamp: new Date(),
-          type: 'ai_response'
-        };
-        setMessages(prev => [...prev, agentMessage]);
-      } else {
-        throw new Error(`API responded with status: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('❌ API Error:', error);
-      console.log('🔄 Falling back to local responses');
-      // Fallback to local responses if API is not available
-      const fallbackResponse = {
-        id: messages.length + 2,
-        text: getIslamicResponse(currentInput),
-        sender: 'agent',
-        timestamp: new Date(),
-        type: 'fallback'
-      };
-      setMessages(prev => [...prev, fallbackResponse]);
-    }
-
-    setIsTyping(false);
-  };
-
-  // Helper function to detect intent
-  const detectIntent = (message) => {
-    const lowerMsg = message.toLowerCase();
-    if (lowerMsg.includes('prayer') || lowerMsg.includes('salah')) return 'prayer';
-    if (lowerMsg.includes('quran') || lowerMsg.includes('verse')) return 'quran';
-    if (lowerMsg.includes('hadith') || lowerMsg.includes('prophet said')) return 'hadith';
-    if (lowerMsg.includes('dua') || lowerMsg.includes('supplication')) return 'dua';
-    if (lowerMsg.includes('halal') || lowerMsg.includes('haram')) return 'fiqh';
-    return 'general';
-  };
-
-  const handleQuickAction = async (action) => {
-    if (action === 'ask_scholar') {
-      // Test the Scholar API
-      setIsTyping(true);
-      try {
-        const response = await fetch('http://localhost:5002/api/scholar', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: 'Tell me about the importance of prayer in Islam',
-            scholar_type: 'fiqh_scholar'
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const scholarMessage = {
-            id: messages.length + 1,
-            text: data.response,
-            sender: 'agent',
-            timestamp: new Date(),
-            type: 'scholar_response'
-          };
-          setMessages(prev => [...prev, scholarMessage]);
-        } else {
-          throw new Error('Scholar API error');
+// --- Utility for cleaner class names ---
+type ClassValue = string | number | boolean | undefined | null | { [key: string]: any } | ClassValue[];
+function clsx(...inputs: ClassValue[]): string {
+  let str = '';
+  for (let i = 0; i < inputs.length; i++) {
+    let x = inputs[i];
+    if (x) {
+      if (typeof x === 'string' || typeof x === 'number') {
+        str += (str && ' ') + x;
+      } else if (Array.isArray(x)) {
+        let y = clsx(...x);
+        if (y) str += (str && ' ') + y;
+      } else if (typeof x === 'object') {
+        for (const k in x) {
+          if (x[k]) str += (str && ' ') + k;
         }
-      } catch (error) {
-        console.error('Scholar API Error:', error);
-        const errorMessage = {
-          id: messages.length + 1,
-          text: "I apologize, but I'm having trouble connecting to the Islamic scholars right now. Please try asking your question directly in the chat.",
-          sender: 'agent',
-          timestamp: new Date(),
-          type: 'error'
-        };
-        setMessages(prev => [...prev, errorMessage]);
       }
-      setIsTyping(false);
-    } else {
-      const content = dailyContent[action];
-      if (content) {
-        const agentMessage = {
-          id: messages.length + 1,
-          text: content.text,
-          sender: 'agent',
-          timestamp: new Date(),
-          type: content.type
-        };
-        setMessages(prev => [...prev, agentMessage]);
+    }
+  }
+  return str;
+}
+
+const cn = (...inputs: ClassValue[]) => {
+  return twMerge(clsx(...inputs));
+};
+
+// --- Detection Utility for Scholarly Scripts ---
+const detectScript = (text: string) => {
+  const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+  const urduRegex = /[\u0600-\u06FF]/; // Urdu shares most characters but often uses specific fonts
+  
+  if (arabicRegex.test(text)) {
+    // Check for Urdu specific characters if needed, but for now we'll prioritize Amiri for standard Arabic
+    return 'arabic';
+  }
+  return 'english';
+};
+
+// --- Museum-Grade Assets ---
+const NoorLogo = ({ size = 32, className = "" }: { size?: number, className?: string }) => (
+  <div className={cn("relative flex items-center justify-center shrink-0", className)}>
+    <div className="absolute inset-[-20%] bg-gold-primary/20 blur-[20px] rounded-full animate-pulse-slow shrink-0" />
+    <img
+      src="/noor-logo.png"
+      alt="Noor Logo"
+      style={{ width: size, height: size }}
+      className="relative z-10 object-contain drop-shadow-[0_0_15px_rgba(229,192,111,0.5)]"
+    />
+  </div>
+);
+
+const SanctuaryGreeting = ({ onSuggestionClick }: { onSuggestionClick: (query: string) => void }) => {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+        delayChildren: 0.1
       }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1] as any }
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-              <Moon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Islamic AI Assistant</h1>
-              <p className="text-green-100">TheIslamInsights.com - Your Trusted Guide</p>
-            </div>
-          </div>
-          <div className="text-right space-y-1">
-            <div className="text-green-100 text-sm">Hijri Date</div>
-            <div className="text-lg font-semibold">{getHijriDate()}</div>
-            <div className="text-green-100 text-sm">Current Time</div>
-            <div className="text-lg font-semibold">
-              {currentTime.toLocaleTimeString('en-US', { 
-                hour12: true, 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="flex flex-col items-center justify-center text-center space-y-20 max-w-5xl mx-auto py-24"
+    >
+      <motion.div variants={itemVariants} className="relative">
+        <div className="absolute inset-0 bg-gold-primary/30 blur-[100px] rounded-full animate-pulse-slow scale-150" />
+        <NoorLogo size={160} className="relative animate-spin-slow duration-[60s]" />
+      </motion.div>
 
-      {/* Category Tabs */}
-      <div className="bg-green-50 border-b overflow-x-auto">
-        <div className="flex gap-1 p-2">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                selectedCategory === category.id
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-green-700 hover:bg-green-100'
-              }`}
+      <motion.div variants={itemVariants} className="space-y-6">
+        <h6 className="font-amiri text-gold-primary text-6xl md:text-8xl leading-none drop-shadow-[0_20px_40px_rgba(229,192,111,0.4)] antialiased select-none">
+          اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ
+        </h6>
+        <p className="text-gold-primary/50 text-[12px] font-black uppercase tracking-[0.8em] font-outfit mt-8">
+          Allah is the light of the heavens and the earth
+        </p>
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="space-y-12 max-w-3xl px-12">
+        <p className="text-white/90 text-2xl font-medium leading-relaxed tracking-tight font-outfit">
+          As-Salaam Alaykum. I am <span className="text-gold-primary font-black">Noor</span>, your scholarly portal to authentic Islamic knowledge.
+        </p>
+        
+        {/* Interactive Suggestion Chips */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 pb-12">
+          {SUGGESTIONS.slice(0, 8).map((s, i) => (
+            <motion.button
+              key={i}
+              whileHover={{ scale: 1.05, backgroundColor: 'rgba(229, 192, 111, 0.15)' }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onSuggestionClick(s.query)}
+              className="flex flex-col items-center gap-4 p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-gold-primary/40 transition-all group"
             >
-              <category.icon size={16} />
-              <span className="text-sm font-medium">{category.name}</span>
-            </button>
+              <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white/40 group-hover:text-gold-primary transition-colors">
+                <s.icon size={20} />
+              </div>
+              <span className="text-[11px] font-black text-white/30 group-hover:text-white/80 uppercase tracking-widest font-outfit whitespace-nowrap">
+                {s.label}
+              </span>
+            </motion.button>
           ))}
         </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-        <h3 className="text-sm font-semibold text-green-800 mb-3">Quick Islamic Guidance</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-          {quickActions.map((action, index) => (
-            <button
-              key={index}
-              onClick={() => handleQuickAction(action.action)}
-              className={`flex flex-col items-center gap-2 p-3 rounded-lg text-white hover:opacity-90 transition-all transform hover:scale-105 ${action.color}`}
-            >
-              <action.icon size={20} />
-              <span className="text-xs font-medium text-center">{action.label}</span>
-            </button>
-          ))}
+        <div className="w-32 h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent mx-auto shadow-[0_0_15px_rgba(229,192,111,0.5)]" />
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const SidebarCard = ({ title, desc, icon: Icon, onClick }: { title: string, desc: string, icon: any, onClick: () => void }) => (
+  <motion.div
+    whileHover={{ x: 8, backgroundColor: 'rgba(229, 192, 111, 0.04)' }}
+    onClick={onClick}
+    className="flex items-start gap-7 p-7 mb-3 rounded-[2rem] cursor-pointer transition-all border border-transparent hover:border-gold-primary/10 group"
+  >
+    <div className="w-16 h-16 shrink-0 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/20 group-hover:text-gold-primary group-hover:bg-gold-primary/10 transition-all shadow-inner">
+      <Icon size={28} />
+    </div>
+    <div className="flex flex-col space-y-2">
+      <h4 className="text-[17px] font-black text-white/90 group-hover:text-gold-primary transition-colors font-outfit">{title}</h4>
+      <p className="text-[12px] text-white/20 leading-relaxed font-medium line-clamp-2 group-hover:text-white/40 transition-colors uppercase tracking-wider">{desc}</p>
+    </div>
+
+  </motion.div>
+);
+
+const ScholarEvidence = ({ type, translation, reference }: { type: 'quran' | 'hadith', translation: string, reference: string }) => (
+  <motion.div
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    className="evidence-box group border-gold-primary/40 mt-12 mb-8 bg-black/40 rounded-[3rem] overflow-hidden border shadow-[0_40px_80px_rgba(0,0,0,0.4)]"
+  >
+    <div className="py-7 px-14 bg-gold-primary/[0.08] border-b border-gold-primary/20 flex justify-between items-center">
+      <div className="flex items-center gap-6">
+        <div className="w-10 h-10 rounded-xl bg-gold-primary/20 flex items-center justify-center border border-gold-primary/30">
+          <Star size={18} className="text-gold-primary animate-pulse" fill="currentColor" />
         </div>
+        <span className="text-[14px] font-black text-gold-primary uppercase tracking-[0.6em] font-outfit">
+          {type === 'quran' ? 'Primary Divine Revelation' : 'Prophetic Scholarly Authority'}
+        </span>
       </div>
+      <div className="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-full border border-white/10 group/ref relative">
+        <span className="text-[12px] font-black text-white/40 tracking-[0.2em] font-inter">[{reference}]</span>
+        <button 
+          onClick={() => {
+            navigator.clipboard.writeText(reference);
+            // We could trigger a toast here if needed, but the main copy handle is available
+          }}
+          className="ml-2 p-1 text-white/10 hover:text-gold-primary transition-colors"
+          title="Copy Reference"
+        >
+          <Copy size={12} />
+        </button>
+      </div>
+    </div>
+    <div className="p-16 relative overflow-hidden">
+      {/* Subtle Geometric Watermark */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none flex items-center justify-center">
+        <NoorLogo size={400} className="scale-150 rotate-12" />
+      </div>
+      <div className="relative z-10 text-[24px] text-white/95 font-medium leading-[2.4] italic border-l-[6px] border-gold-primary/50 pl-14 font-outfit antialiased">
+        "{translation}"
+      </div>
+    </div>
+  </motion.div>
+);
 
-      {/* Messages */}
-      <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
-                message.sender === 'user'
-                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                  : 'bg-white text-gray-800 border border-gray-200'
-              }`}
-            >
-              {/* AI Response Type Indicator */}
-              {message.sender === 'agent' && message.type === 'ai_response' && (
-                <div className="mb-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    🤖 Enhanced AI Scholar Response
-                  </span>
-                </div>
-              )}
-              {message.sender === 'agent' && message.type === 'fallback' && (
-                <div className="mb-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    📚 Local Knowledge Base
-                  </span>
-                </div>
-              )}
-              {message.sender === 'agent' && message.type === 'scholar_response' && (
-                <div className="mb-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    👨‍🏫 Islamic Scholar Response
-                  </span>
-                </div>
-              )}
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</div>
-              <div
-                className={`text-xs mt-2 flex items-center gap-1 ${
-                  message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                }`}
+interface Message {
+  id: number;
+  text: string;
+  sender: 'user' | 'ai' | 'agent';
+  timestamp: Date;
+}
+
+const SUGGESTIONS = [
+  { icon: Sun, label: "Daily Adhkar", query: "What are the recommended morning and evening Adhkar?" },
+  { icon: MapPin, label: "Prayer Times", query: "Show me the prayer times for my location" },
+  { icon: Book, label: "Surah Al-Mulk", query: "What are the benefits of reciting Surah Al-Mulk every night?" },
+  { icon: Compass, label: "Qibla Finder", query: "Which direction is the Qibla from here?" },
+  { icon: Star, label: "99 Names", query: "Tell me about the 99 Names of Allah and their meanings" },
+  { icon: Moon, label: "Tahajjud Dua", query: "What is the best dua to make during Tahajjud prayer?" },
+  { icon: Scroll, label: "Zakat Calc", query: "How do I calculate Zakat on my savings and gold?" },
+  { icon: MessageSquare, label: "Dua for Parents", query: "What are some beautiful Duas from the Quran for parents?" }
+];
+
+const PlaceholderRotator = () => {
+  const placeholders = [
+    "Inquire about Quran, Hadith, or Fiqh...",
+    "Ask about the life of Prophet Muhammad (SAW)...",
+    "How to perform specific prayers and Duas?",
+    "Need a Zakat or Inheritance calculation?",
+    "Seeking guidance from the Four Madhabs...",
+    "Authentic Hadith grading and context..."
+  ];
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % placeholders.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <motion.span
+      key={index}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="absolute left-0 pointer-events-none text-white/10"
+    >
+      {placeholders[index]}
+    </motion.span>
+  );
+};
+
+const IslamicAIAgent = ({ isWidget = false, apiUrl = 'http://localhost:5010' }) => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      text: "As-Salaam Alaykum. I am Noor, your scholarly companion. How may I assist you today in your journey of knowledge?",
+      sender: 'ai',
+      timestamp: new Date()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [gender] = useState<'male' | 'female' | 'not_specified'>('not_specified');
+  const [toast, setToast] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<number | null>(null);
+  const [selectedReference, setSelectedReference] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  
+  // Real-time Islamic Data State
+  const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [prayerTimes, setPrayerTimes] = useState<any>(null);
+  const [qibla, setQibla] = useState<any>(null);
+  const [isLoadingIslamicData, setIsLoadingIslamicData] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
+  useEffect(() => {
+    // Request location on mount
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+          setLocation(loc);
+          fetchIslamicData(loc);
+        },
+        (error) => {
+          console.error("Location access denied or failed", error);
+          showToast("Location access helpful for Prayer Times 🤲");
+        }
+      );
+    }
+  }, []);
+
+  const fetchIslamicData = async (loc: { lat: number, lng: number }) => {
+    setIsLoadingIslamicData(true);
+    try {
+      // Fetch Prayer Times
+      const pRes = await fetch(`${apiUrl}/api/prayer-times`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng })
+      });
+      const pData = await pRes.json();
+      setPrayerTimes(pData.data || pData.prayer_times);
+
+      // Fetch Qibla
+      const qRes = await fetch(`${apiUrl}/api/qibla`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng })
+      });
+      const qData = await qRes.json();
+      setQibla(qData);
+    } catch (error) {
+      console.error("Failed to fetch Islamic data", error);
+    } finally {
+      setIsLoadingIslamicData(false);
+    }
+  };
+
+  const handleSendMessage = async (text?: string) => {
+    const textToSend = (text || inputMessage).trim();
+    if (!textToSend || isTyping) return;
+
+    const userMsg: Message = { id: Date.now(), text: textToSend, sender: 'user', timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
+    if (!text) setInputMessage('');
+    setIsTyping(true);
+
+    try {
+      const response = await fetch(`${apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: textToSend, user_gender: gender }),
+      });
+
+      if (!response.ok) throw new Error('Service Unavailable');
+      const data = await response.json();
+
+      const aiMsg: Message = { id: Date.now() + 1, text: data.response, sender: 'ai', timestamp: new Date() };
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (error) {
+      console.error('Chat error:', error);
+      showToast("Connection issue - Attempting to restore");
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("Knowledge Copied 🤲");
+    } catch (err) {
+      showToast("Copy failed - Please retry");
+    }
+  };
+
+  const handleShare = async (text: string) => {
+    const shareData = {
+      title: 'Scholarly Insight from Noor',
+      text: `${text}\n\n— Sent from Noor Islamic AI Agent`,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await handleCopy(text);
+        showToast("Link shared to clipboard 🤲");
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        showToast("Sharing currently unavailable");
+      }
+    }
+  };
+
+  const renderMessageContent = (msg: Message) => {
+    const isAI = msg.sender === 'ai' || msg.sender === 'agent';
+    const text = msg.text;
+
+    if (isAI) {
+      // Enhanced regex to match broader scholarly formats like [The Holy Quran 17:78] or [Sahih Bukhari 123]
+      const quranRegex = /\[(?:The\s+Holy\s+)?Quran\s*(?:\([^)]*\))?\s*(\d+:\d+)\]/i;
+      const hadithRegex = /\[(?:Sahih\s+|Sunan\s+|Jami`?\s+|Muwatta\s+)?(Bukhari|Muslim|Hadith|Tirmidhi|Dawud|Nasa'i|Majah|Malik|Nawawi)\s*(?:\([^)]*\))?\s*(?:Hadith\s+)?#?(\d+)\]/i;
+
+      return (
+        <div className="space-y-12">
+          {text.split('\n\n').filter((block: string) => block.trim()).map((block: string, i: number) => {
+            // Case 1: Scholar Evidence (Quran/Hadith)
+            if (quranRegex.test(block)) {
+              const match = block.match(quranRegex);
+              return <ScholarEvidence key={i} type="quran" translation={block.replace(quranRegex, "").trim()} reference={`Quran ${match![1]}`} />;
+            }
+            if (hadithRegex.test(block)) {
+              const match = block.match(hadithRegex);
+              return <ScholarEvidence key={i} type="hadith" translation={block.replace(hadithRegex, "").trim()} reference={`${match![1]} ${match![2]}`} />;
+            }
+
+            // Case 2: Script-Aware Block Parsing
+            const lines = block.split('\n').filter((l: string) => l.trim());
+            const processedLines = lines.map((line: string, idx: number) => {
+              const lineTrimmed = line.trim();
+              const scriptType = detectScript(lineTrimmed);
+              const isArabic = scriptType === 'arabic';
+              
+              if (isArabic) {
+                let content = lineTrimmed;
+                // Remove prefixes if they still exist for backward compatibility or direct data
+                content = content.replace(/^(?:arabic|urdu):/i, "").trim();
+
+                // Intelligently peel off trailing transliterations in parentheses (but do not display)
+                const translitMatch = content.match(/\(([^)]+)\)$/);
+                if (translitMatch) {
+                  content = content.replace(translitMatch[0], "").trim();
+                }
+
+                return (
+                  <div key={idx} className="space-y-4 mb-14 group/script">
+                    <div
+                      dir="rtl"
+                      className="text-right drop-shadow-2xl transition-all duration-700 py-6 arabic-text text-6xl text-gold-primary border-b border-gold-primary/10 hover:border-gold-primary/30"
+                    >
+                      {content}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Hide Transliteration-only lines (standalone parentheses)
+              if (/^\(.*\)$/.test(lineTrimmed)) {
+                return null;
+              }
+
+              // Fallback for standard English/Mixed text
+              return (
+                <p key={idx} className="text-[20px] text-white/90 leading-[2.2] font-medium tracking-tight mb-6 last:mb-0 antialiased">
+                  {lineTrimmed.split(/(\*\*.*?\*\*)/g).map((part: string, j: number) =>
+                    part.startsWith('**') && part.endsWith('**')
+                      ? <strong key={j} className="text-gold-primary font-black drop-shadow-[0_0_10px_rgba(229,192,111,0.3)]">{part.slice(2, -2)}</strong>
+                      : part
+                  )}
+                </p>
+              );
+            });
+
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.12, duration: 1, ease: [0.16, 1, 0.3, 1] as any }}
+                className="space-y-4"
               >
-                <Clock size={10} />
-                {message.timestamp.toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-                {message.type && (
-                  <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">
-                    {message.type}
-                  </span>
-                )}
+                {processedLines}
+              </motion.div>
+            );
+          })}
+        </div>
+      );
+    }
+    return <div className="text-[18px] font-semibold text-white/95 leading-relaxed">{text}</div>;
+  };
+
+  return (
+    <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-12 bg-[#011412]">
+      {/* High-Fidelity Realistic Background from 2nd Image */}
+      <div className="absolute inset-0 z-0 opacity-100 pointer-events-none transition-opacity duration-[2000ms]">
+        <img
+          src="/background-premium.png"
+          alt="Noor AI Islamic Agent"
+          className="w-full h-full object-cover mix-blend-screen opacity-100"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#011412]/60 via-transparent to-[#011412]/30" />
+
+      </div>
+
+      {/* Main Scholarly Station */}
+      <div className="flex w-full h-[90vh] max-w-[1780px] bg-[#011412]/85 backdrop-blur-[80px] rounded-[4rem] border border-white/5 overflow-hidden shadow-[0_120px_240px_rgba(0,0,0,0.98)] transition-all relative z-10">
+
+        {/* Simplified Authored Sidebar */}
+        <motion.div
+          animate={{
+            width: isSidebarOpen ? 480 : 0,
+            opacity: isSidebarOpen ? 1 : 0,
+            x: isSidebarOpen ? 0 : -20
+          }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col bg-black/20 border-r border-white/5 overflow-hidden relative"
+        >
+          <div className="w-[480px] flex flex-col px-10 pt-16 pb-12 h-full">
+            <div className="flex items-center gap-6 mb-20 pl-4">
+              <NoorLogo size={42} />
+              <div className="flex flex-col">
+                <span className="text-[18px] font-black text-white tracking-[0.3em] font-outfit uppercase">Noor</span>
+                <span className="text-[10px] font-bold text-white/20 tracking-[0.6em] uppercase">Islamic AI Chatbot</span>
               </div>
             </div>
+
+            <div className="flex-1 overflow-y-auto no-scrollbar pr-2">
+              <SidebarCard icon={Star} title="Islam & Moral Character" desc="WHAT DOES ISLAM TEACH ABOUT MORAL CHARACTER AND DAILY CONDUCT?" onClick={() => handleSendMessage("What does Islam teach about moral character and how should a Muslim conduct themselves in daily life?")} />
+              <SidebarCard icon={LayoutGrid} title="The Five Pillars" desc="EXPLAIN THE FIVE PILLARS AND WHY THEY ARE OBLIGATORY FOR EVERY MUSLIM" onClick={() => handleSendMessage("Explain the five pillars of Islam and why they are considered obligatory for every Muslim.")} />
+              <SidebarCard icon={Moon} title="Ramadan Essentials" desc="SIGNIFICANCE OF RAMADAN & FAST PROTOCOLS" onClick={() => handleSendMessage("Tell me about Ramadan significance")} />
+              <SidebarCard icon={Sun} title="Daily Dua & Dhikr" desc="PROPHETIC SUPPLICATIONS FOR HEART PURITY" onClick={() => handleSendMessage("What are the best daily duas?")} />
+              <SidebarCard icon={Book} title="Hadith Collections" desc="AUTHENTIC CHAINS FROM THE NINE BOOKS" onClick={() => handleSendMessage("How are Hadiths authenticated?")} />
+              <SidebarCard icon={Scroll} title="Quran Tafseer" desc="CLASSICAL EXEGESIS & SCHOLARLY INSIGHTS" onClick={() => handleSendMessage("Tell me about Quranic interpretation")} />
+
+              {/* Real-time Islamic Widgets */}
+              <div className="mt-12 space-y-6">
+                <div className="px-6 py-2">
+                  <span className="text-[10px] font-black text-gold-primary/40 tracking-[0.5em] uppercase">Real-time Sacred Data</span>
+                </div>
+                
+                {/* Prayer Times Widget */}
+                <motion.div 
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-gold-primary/5 border border-gold-primary/10 rounded-[2.5rem] p-8 mx-2 relative overflow-hidden group shadow-2xl"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gold-primary/10 blur-[50px] rounded-full -mr-16 -mt-16 group-hover:bg-gold-primary/20 transition-all" />
+                  <div className="flex items-center gap-6 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-gold-primary/20 flex items-center justify-center text-gold-primary">
+                      <MapPin size={24} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-black text-white/90 font-outfit uppercase tracking-wider">Prayer Schedule</span>
+                      <span className="text-[10px] font-bold text-gold-primary/60 uppercase tracking-widest">
+                        {prayerTimes?.hijri || "Detecting Location..."}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {prayerTimes ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {Object.entries(prayerTimes.timings || {}).filter(([k]) => ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(k)).map(([name, time]: [any, any]) => (
+                        <div key={name} className="flex flex-col p-3 bg-white/[0.03] rounded-xl border border-white/5">
+                          <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{name}</span>
+                          <span className="text-[14px] font-bold text-gold-primary">{time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[12px] text-white/20 italic animate-pulse">Requesting celestial timings...</div>
+                  )}
+                </motion.div>
+
+                {/* Qibla Direction Widget */}
+                <motion.div 
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-8 mx-2 flex items-center gap-8 shadow-xl"
+                >
+                  <div className="relative w-20 h-20 flex items-center justify-center bg-black/40 rounded-full border-2 border-gold-primary/20 overflow-hidden shadow-inner">
+                    <motion.div 
+                      animate={{ rotate: qibla?.bearing || 0 }}
+                      transition={{ type: "spring", stiffness: 50 }}
+                      className="text-gold-primary"
+                    >
+                      <Compass size={44} strokeWidth={1.5} />
+                    </motion.div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-gold-primary/10 to-transparent pointer-events-none" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-black text-white/90 font-outfit uppercase tracking-wider">Qibla Direction</span>
+                    <span className="text-[18px] font-bold text-gold-primary tracking-tight">
+                      {qibla?.bearing ? `${qibla.bearing.toFixed(1)}° ${qibla.direction}` : "Not Determined"}
+                    </span>
+                    <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em] mt-1">Facing Holy Kaaba</span>
+                  </div>
+                </motion.div>
+              </div>
           </div>
-        ))}
-        
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-white text-gray-800 px-4 py-3 rounded-2xl border border-gray-200 shadow-sm">
-              <div className="flex items-center space-x-2">
-                <div className="text-sm text-green-600">Assistant is typing</div>
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+        </div>
+      </motion.div>
+
+        {/* Chat Sanctuary Area */}
+        <div className="flex-1 flex flex-col relative bg-gradient-to-br from-white/[0.015] to-transparent">
+          {/* Elegant Top Header */}
+          <div className="h-32 flex items-center justify-between px-20 border-b border-white/5 bg-white/[0.005]">
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white/[0.03] border border-white/10 text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all shadow-xl group"
+              >
+                <PanelLeft size={24} className={cn("transition-transform duration-500", !isSidebarOpen && "rotate-180")} />
+              </button>
+              <div className="w-16 h-16 rounded-[1.5rem] bg-white/[0.03] border border-white/10 flex items-center justify-center text-white/20 shadow-2xl">
+                <NoorLogo size={32} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-2xl font-black text-white tracking-tight uppercase font-outfit">Noor Islamic Agent</span>
+                <span className="text-[11px] font-bold text-white/30 tracking-[0.4em] uppercase">Scholarly Assistant Authority</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-8">
+              <span className="font-amiri text-white text-3xl tracking-widest select-none drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</span>
+            </div>
+          </div>
+
+          {/* Messages Sanctuary */}
+          <div className="flex-1 overflow-y-auto no-scrollbar px-24 py-16 space-y-2 pb-64" ref={chatContainerRef}>
+            {messages.length === 1 && !isTyping && (
+              <SanctuaryGreeting onSuggestionClick={(q) => {
+                setInputMessage(q);
+                handleSendMessage(q);
+              }} />
+            )}
+
+            <AnimatePresence mode="popLayout">
+              {messages.map((msg) => (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 40 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] as any }}
+                  className={cn("flex w-full", msg.sender === 'user' ? "justify-end" : "justify-start")}
+                >
+                  <div
+                    onMouseEnter={() => setLastAction(msg.id)}
+                    onMouseLeave={() => setLastAction(null)}
+                    className={cn(
+                      "max-w-[85%] p-14 rounded-[3.5rem] border transition-all duration-1000 backdrop-blur-3xl shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative group/msg",
+                      msg.sender === 'user'
+                        ? "bg-white/[0.04] border-white/10 text-white"
+                        : "bg-[#011412]/80 border-gold-primary/20 pb-20"
+                    )}>
+                    {renderMessageContent(msg)}
+
+                    {msg.sender === 'ai' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: lastAction === msg.id ? 1 : 0, y: lastAction === msg.id ? 0 : 5 }}
+                        className="absolute bottom-6 right-10 flex items-center gap-3 bg-black/40 backdrop-blur-3xl rounded-full p-2 border border-white/5 shadow-2xl z-20"
+                      >
+                        <button
+                          onClick={() => handleCopy(msg.text)}
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all"
+                          title="Copy Full Knowledge"
+                        >
+                          <Copy size={16} />
+                        </button>
+                        <div className="w-[1px] h-4 bg-white/5" />
+                        <button
+                          onClick={() => handleShare(msg.text)}
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all"
+                          title="Share Insight"
+                        >
+                          <Share2 size={16} />
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            {isTyping && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
+                <div className="bg-gold-primary/5 border border-gold-primary/20 rounded-[2rem] px-12 py-6 flex gap-6 items-center backdrop-blur-3xl shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
+                  <div className="flex gap-2">
+                    {[0, 1, 2].map(i => (
+                      <motion.div 
+                        key={i} 
+                        animate={{ 
+                          scale: [1, 1.5, 1],
+                          opacity: [0.3, 1, 0.3],
+                          boxShadow: ["0 0 0px #E5C06F", "0 0 15px #E5C06F", "0 0 0px #E5C06F"]
+                        }} 
+                        transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.3, ease: "easeInOut" }} 
+                        className="w-3 h-3 bg-gold-primary rounded-full" 
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[13px] font-black text-gold-primary uppercase tracking-[0.5em] font-outfit">Consulting Scholarly Consensus...</span>
+                </div>
+              </motion.div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          {/* Final Floating Input Pill with Suggestions */}
+          <div className="absolute bottom-5 left-0 right-0 px-32 pointer-events-none">
+            <div className="max-w-5xl mx-auto pointer-events-auto">
+              {/* Interactive Suggestion Chips */}
+              <AnimatePresence>
+                {showSuggestions && !inputMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="flex gap-4 mb-8 overflow-x-auto no-scrollbar pb-2"
+                  >
+                    {SUGGESTIONS.map((item, idx) => (
+                      <motion.button
+                        key={idx}
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleSendMessage(item.query)}
+                        className="suggestion-chip flex items-center gap-3 shrink-0"
+                      >
+                        <item.icon size={16} />
+                        {item.label}
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="flex items-center bg-[#011412]/98 backdrop-blur-[100px] rounded-[3rem] h-28 px-10 border border-white/10 shadow-[0_80px_160px_rgba(0,0,0,0.95)] gap-8 transition-all hover:border-gold-primary/20 group/input">
+                <button className="p-4 text-white/10 hover:text-gold-primary transition-all group-hover/input:text-white/20"><Paperclip size={26} /></button>
+                <div className="relative flex-1 flex items-center h-full">
+                  {!inputMessage && <PlaceholderRotator />}
+                  <input
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
+                    className="w-full bg-transparent border-none outline-none text-2xl text-white font-medium z-10"
+                  />
+                </div>
+                <div className="flex items-center gap-6 border-l border-white/5 pl-8 h-14">
+                  <button className="p-4 text-white/10 hover:text-gold-primary transition-all group-hover/input:text-white/20"><Mic size={26} /></button>
+                  <button
+                    onClick={() => handleSendMessage()}
+                    disabled={!inputMessage.trim() || isTyping}
+                    className={cn(
+                      "w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl",
+                      inputMessage.trim() ? "bg-gold-primary text-black hover:scale-110 active:scale-95" : "bg-white/5 text-white/5"
+                    )}
+                  >
+                    <Send size={24} fill={inputMessage.trim() ? "currentColor" : "none"} />
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="p-4 bg-gray-50 border-t">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Ask about Islam: prayers, Quran, halal food, duas..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!inputMessage.trim()}
-            className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-          >
-            <Send size={16} />
-            <span className="hidden sm:inline">Send</span>
-          </button>
-        </div>
-        
-        {/* Sample Questions */}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {['Five pillars of Islam', 'How to pray?', 'Morning duas', 'Halal food guide', 'About Prophet Muhammad'].map((question, index) => (
-            <button
-              key={index}
-              onClick={() => setInputMessage(question)}
-              className="px-3 py-1 bg-white text-green-600 text-sm rounded-full border border-green-200 hover:bg-green-50 transition-colors"
-            >
-              {question}
-            </button>
-          ))}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-center">
-        <div className="text-white/90 text-sm space-y-1">
-          <p className="flex items-center justify-center gap-2">
-            <Heart size={14} className="text-red-300" />
-            May Allah (SWT) guide us all on the straight path
-          </p>
-          <p>🕌 Always consult qualified Islamic scholars for important religious matters</p>
-          <p className="text-white/70">© 2024 TheIslamInsights.com - Your Trusted Islamic Resource</p>
+      {toast && (
+        <div className="fixed bottom-32 px-10 py-4 bg-gold-primary rounded-full text-black font-black uppercase tracking-widest text-xs shadow-2xl animate-bounce">
+          {toast}
         </div>
-      </div>
+      )}
     </div>
   );
 };

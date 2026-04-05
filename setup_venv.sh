@@ -4,25 +4,21 @@
 
 echo "🌟 Setting up Islamic AI Agent with AgentScope..."
 
-# Create virtual environment
+# Create virtual environment (using .nosync to prevent macOS iCloud Drive hanging issues)
 echo "📦 Creating virtual environment..."
-python3 -m venv islamic_ai_venv
+python3 -m venv islamic_ai_venv.nosync
 
 # Activate virtual environment
 echo "🔄 Activating virtual environment..."
-source islamic_ai_venv/bin/activate
+source islamic_ai_venv.nosync/bin/activate
 
-# Upgrade pip
-echo "⬆️ Upgrading pip..."
-pip install --upgrade pip
+# Upgrade pip and install uv for fast, hang-free package installation
+echo "⬆️ Upgrading pip and installing uv..."
+pip install --upgrade pip uv
 
-# Install AgentScope
-echo "🚀 Installing AgentScope..."
-pip install agentscope
-
-# Install additional dependencies
-echo "📚 Installing Islamic AI dependencies..."
-pip install requests python-dateutil geopy hijri-converter openai python-dotenv aiohttp asyncio
+# Install AgentScope and required packages using uv (prevents macOS PyPI network hangs)
+echo "🚀 Installing dependencies using uv..."
+uv pip install agentscope requests python-dateutil geopy hijri-converter openai python-dotenv aiohttp asyncio flask flask-cors google-generativeai chromadb
 
 # Create .env file if it doesn't exist
 if [ ! -f .env ]; then
@@ -50,9 +46,10 @@ echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "🎯 Next steps:"
-echo "1. Activate the virtual environment: source islamic_ai_venv/bin/activate"
-echo "2. Add your OpenAI API key to the .env file"
-echo "3. Run the Islamic AI Agent:"
+echo "1. Activate the virtual environment: source islamic_ai_venv.nosync/bin/activate"
+echo "2. Add your OpenAI and Gemini API keys to the .env file"
+echo "3. Run the Islamic AI Agent Backend:"
+echo "   • Main API Server: python simple_api.py"
 echo "   • Single agent: python islamic_ai_agent.py"
 echo "   • Multi-agent: python multi_agent_islamic_system.py"
 echo ""
