@@ -543,7 +543,7 @@ const PlaceholderRotator = () => {
   );
 };
 
-const IslamicAIAgent = ({ isWidget = false, apiUrl = 'http://localhost:5010' }) => {
+const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') ? '' : 'http://localhost:5010' }) => {
   // Initialize messages from LocalStorage if available
   const [messages, setMessages] = useState<Message[]>(() => {
     const saved = localStorage.getItem('noor_scholar_history');

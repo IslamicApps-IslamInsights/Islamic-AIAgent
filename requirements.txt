@@ -1,0 +1,15 @@
+flask
+flask-cors
+google-generativeai
+langchain
+langchain-community
+langchain-google-genai
+chromadb
+hijri-converter
+python-dotenv
+requests
+agentscope
+geopy
+python-dateutil
+aiohttp
+pytz

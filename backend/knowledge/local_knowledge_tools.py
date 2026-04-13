@@ -11,6 +11,11 @@ from dotenv import load_dotenv
 from typing import List, Dict, Any, Tuple
 
 # Langchain imports will be deferred
+import logging
+logger = logging.getLogger("NoorKnowledge")
+
+# Detect Vercel Environment
+IS_VERCEL = os.environ.get("VERCEL") == "1" or os.environ.get("VERCEL_URL") is not None
 
 # Load environment variables
 load_dotenv()
@@ -64,16 +69,25 @@ class LocalKnowledgeBase:
     
     def __init__(self):
         # UPGRADE: State-of-the-art multilingual model
+        # CLOUD OPTIMIZATION: On Vercel, we use Gemini Embeddings to keep the package light
         model_name = "intfloat/multilingual-e5-large"
-        print(f"🏛️  1/2: Initializing Retrieval Model: {model_name}...")
         
         try:
-            from langchain_huggingface import HuggingFaceEmbeddings
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name=model_name,
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'normalize_embeddings': True}
-            )
+            if IS_VERCEL:
+                print("☁️  Vercel Detected: Using Cloud-Native Google Gemini Embeddings...")
+                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                self.embeddings = GoogleGenerativeAIEmbeddings(
+                    model="models/embedding-001",
+                    google_api_key=os.getenv("GOOGLE_API_KEY")
+                )
+            else:
+                print(f"🏛️  1/2: Initializing Retrieval Model: {model_name}...")
+                from langchain_huggingface import HuggingFaceEmbeddings
+                self.embeddings = HuggingFaceEmbeddings(
+                    model_name=model_name,
+                    model_kwargs={'device': 'cpu'},
+                    encode_kwargs={'normalize_embeddings': True}
+                )
             print("✅ Retrieval Model loaded successfully.")
             
             # Initialize vector store
@@ -96,19 +110,19 @@ class LocalKnowledgeBase:
                         if isinstance(payload, dict) and "model" in payload:
                             self.bm25_data = payload
                             print(f"✅ Fast BM25 Keyword Index active ({len(payload.get('texts', []))} docs).")
-                        else:
-                            # Legacy check
-                            self.bm25_data = None
-                            print("⚠️ Legacy BM25 index found. Please re-run ingestion.")
                 except Exception as e:
                     print(f"⚠️ BM25 load error: {e}")
 
             # Initialize Re-ranker (Cross-Encoder)
-            print("🧠 2/2: Loading Cross-Encoder Re-ranker (bge-reranker-v2-m3)...")
-            from sentence_transformers import CrossEncoder
-            # Using a high-performance multilingual re-ranker
-            self.reranker = CrossEncoder('BAAI/bge-reranker-v2-m3', device='cpu')
-            print("✅ Re-ranker ready for distillation.")
+            # CLOUD OPTIMIZATION: Skip heavy re-ranker on Vercel to avoid timeouts
+            if IS_VERCEL:
+                print("⏩ Vercel Detected: Re-ranker bypassed for performance.")
+                self.reranker = None
+            else:
+                print("🧠 2/2: Loading Cross-Encoder Re-ranker (bge-reranker-v2-m3)...")
+                from sentence_transformers import CrossEncoder
+                self.reranker = CrossEncoder('BAAI/bge-reranker-v2-m3', device='cpu')
+                print("✅ Re-ranker ready for distillation.")
             
             print("🌟 Scholarly Knowledge Base is fully operational.")
             
