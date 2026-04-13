@@ -40,13 +40,18 @@ Noor is built upon the synthesis of two worlds: **Authentic Tradition** and **Ad
 ## 📂 Project Structure
 
 ```text
+├── backend/                   # Modular Python Backend
+│   ├── api/                   # Flask endpoints (web_api.py)
+│   ├── core/                  # Agent logic (Noor & Multi-Agent)
+│   ├── config/                # Environment & prompt configurations
+│   ├── tools/                 # Islamic scholarly tools (Quran/Hadith APIs)
+│   ├── knowledge/             # RAG Engine (Local knowledge base)
+│   └── data/                  # Persistent analytics and data
+├── frontend/                  # React (Vite) User Interface
 ├── docs/                      # Comprehensive Documentation Suite
-├── islamic-ai-agent/          # React (Vite) Frontend
-├── knowledge_base/            # RAG Engine & Local Store
-├── multi_agent_islamic_system.py # Specialized Scholarly Backend
-├── islamic_ai_agent.py        # Single Agent Implementation
-├── web_api.py                 # Unified Flask Bridge
-└── llm_provider.py            # Gemini & AgentScope Manager
+├── scripts/                   # Diagnostic and maintenance scripts
+├── logs/                      # Application logs
+└── run_app.sh                 # Unified application launcher
 ```
 
 ---
@@ -75,15 +80,20 @@ GOOGLE_API_KEY=your_gemini_key_here
 ```
 
 ### 3. Launch the Stack
-```bash
-# Start the Backend (Port 5010)
-python3 web_api.py
+The simplest way to run Noor is using the unified runner script:
 
-# Start the Frontend (Port 3001)
-cd islamic-ai-agent
-npm install
-npm run dev -- --port 3001
+```bash
+# Initialize the environment (first time only)
+chmod +x setup_venv.sh run_app.sh
+./setup_venv.sh
+
+# Start both Backend and Frontend
+./run_app.sh
 ```
+
+- **Frontend**: http://localhost:3001
+- **Backend Health**: http://localhost:5010/api/health
+- **Logs**: Check the `logs/` directory for detailed output.
 
 ---
 
