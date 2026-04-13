@@ -68,3 +68,16 @@ knowledge_base/data_old/
 islamic-ai-agent/node_modules/
 islamic-ai-agent/dist/
 islamic-ai-agent/build/
+
+# Local Logs and PIDs
+*.log
+*.pid
+
+
+# Backend Data
+backend/data/topic_analytics.json
+
+
+# Virtual Environments
+*.nosync/
+

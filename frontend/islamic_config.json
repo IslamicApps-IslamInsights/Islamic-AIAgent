@@ -1,0 +1,943 @@
+{
+  "agents": {
+    "single_agent_name": "Noor",
+    "specialists": {
+      "quran": "Sheikh Abdullah",
+      "hadith": "Sheikh Aisha",
+      "fiqh": "Sheikh Omar",
+      "spiritual": "Sheikh Fatima",
+      "coordinator": "Imam Hassan"
+    }
+  },
+  "surah_mappings": {
+    "al-fatiha": {
+      "number": 1,
+      "type": "surah"
+    },
+    "fatiha": {
+      "number": 1,
+      "type": "surah"
+    },
+    "al-baqarah": {
+      "number": 2,
+      "type": "surah"
+    },
+    "baqarah": {
+      "number": 2,
+      "type": "surah"
+    },
+    "al-imran": {
+      "number": 3,
+      "type": "surah"
+    },
+    "imran": {
+      "number": 3,
+      "type": "surah"
+    },
+    "an-nisa": {
+      "number": 4,
+      "type": "surah"
+    },
+    "nisa": {
+      "number": 4,
+      "type": "surah"
+    },
+    "al-maidah": {
+      "number": 5,
+      "type": "surah"
+    },
+    "maidah": {
+      "number": 5,
+      "type": "surah"
+    },
+    "al-anam": {
+      "number": 6,
+      "type": "surah"
+    },
+    "anam": {
+      "number": 6,
+      "type": "surah"
+    },
+    "al-araf": {
+      "number": 7,
+      "type": "surah"
+    },
+    "araf": {
+      "number": 7,
+      "type": "surah"
+    },
+    "al-anfal": {
+      "number": 8,
+      "type": "surah"
+    },
+    "anfal": {
+      "number": 8,
+      "type": "surah"
+    },
+    "at-tawbah": {
+      "number": 9,
+      "type": "surah"
+    },
+    "tawbah": {
+      "number": 9,
+      "type": "surah"
+    },
+    "yunus": {
+      "number": 10,
+      "type": "surah"
+    },
+    "hud": {
+      "number": 11,
+      "type": "surah"
+    },
+    "yusuf": {
+      "number": 12,
+      "type": "surah"
+    },
+    "ar-rad": {
+      "number": 13,
+      "type": "surah"
+    },
+    "rad": {
+      "number": 13,
+      "type": "surah"
+    },
+    "ibrahim": {
+      "number": 14,
+      "type": "surah"
+    },
+    "al-hijr": {
+      "number": 15,
+      "type": "surah"
+    },
+    "hijr": {
+      "number": 15,
+      "type": "surah"
+    },
+    "an-nahl": {
+      "number": 16,
+      "type": "surah"
+    },
+    "nahl": {
+      "number": 16,
+      "type": "surah"
+    },
+    "al-isra": {
+      "number": 17,
+      "type": "surah"
+    },
+    "isra": {
+      "number": 17,
+      "type": "surah"
+    },
+    "al-kahf": {
+      "number": 18,
+      "type": "surah"
+    },
+    "kahf": {
+      "number": 18,
+      "type": "surah"
+    },
+    "maryam": {
+      "number": 19,
+      "type": "surah"
+    },
+    "ta-ha": {
+      "number": 20,
+      "type": "surah"
+    },
+    "taha": {
+      "number": 20,
+      "type": "surah"
+    },
+    "al-anbiya": {
+      "number": 21,
+      "type": "surah"
+    },
+    "anbiya": {
+      "number": 21,
+      "type": "surah"
+    },
+    "al-hajj": {
+      "number": 22,
+      "type": "surah"
+    },
+    "hajj": {
+      "number": 22,
+      "type": "surah"
+    },
+    "al-muminun": {
+      "number": 23,
+      "type": "surah"
+    },
+    "muminun": {
+      "number": 23,
+      "type": "surah"
+    },
+    "an-nur": {
+      "number": 24,
+      "type": "surah"
+    },
+    "nur": {
+      "number": 24,
+      "type": "surah"
+    },
+    "al-furqan": {
+      "number": 25,
+      "type": "surah"
+    },
+    "furqan": {
+      "number": 25,
+      "type": "surah"
+    },
+    "ash-shuara": {
+      "number": 26,
+      "type": "surah"
+    },
+    "shuara": {
+      "number": 26,
+      "type": "surah"
+    },
+    "an-naml": {
+      "number": 27,
+      "type": "surah"
+    },
+    "naml": {
+      "number": 27,
+      "type": "surah"
+    },
+    "al-qasas": {
+      "number": 28,
+      "type": "surah"
+    },
+    "qasas": {
+      "number": 28,
+      "type": "surah"
+    },
+    "al-ankabut": {
+      "number": 29,
+      "type": "surah"
+    },
+    "ankabut": {
+      "number": 29,
+      "type": "surah"
+    },
+    "ar-rum": {
+      "number": 30,
+      "type": "surah"
+    },
+    "rum": {
+      "number": 30,
+      "type": "surah"
+    },
+    "luqman": {
+      "number": 31,
+      "type": "surah"
+    },
+    "as-sajdah": {
+      "number": 32,
+      "type": "surah"
+    },
+    "sajdah": {
+      "number": 32,
+      "type": "surah"
+    },
+    "al-ahzab": {
+      "number": 33,
+      "type": "surah"
+    },
+    "ahzab": {
+      "number": 33,
+      "type": "surah"
+    },
+    "saba": {
+      "number": 34,
+      "type": "surah"
+    },
+    "fatir": {
+      "number": 35,
+      "type": "surah"
+    },
+    "yasin": {
+      "number": 36,
+      "type": "surah"
+    },
+    "ya-sin": {
+      "number": 36,
+      "type": "surah"
+    },
+    "as-saffat": {
+      "number": 37,
+      "type": "surah"
+    },
+    "saffat": {
+      "number": 37,
+      "type": "surah"
+    },
+    "sad": {
+      "number": 38,
+      "type": "surah"
+    },
+    "az-zumar": {
+      "number": 39,
+      "type": "surah"
+    },
+    "zumar": {
+      "number": 39,
+      "type": "surah"
+    },
+    "ghafir": {
+      "number": 40,
+      "type": "surah"
+    },
+    "fussilat": {
+      "number": 41,
+      "type": "surah"
+    },
+    "ash-shura": {
+      "number": 42,
+      "type": "surah"
+    },
+    "shura": {
+      "number": 42,
+      "type": "surah"
+    },
+    "az-zukhruf": {
+      "number": 43,
+      "type": "surah"
+    },
+    "zukhruf": {
+      "number": 43,
+      "type": "surah"
+    },
+    "ad-dukhan": {
+      "number": 44,
+      "type": "surah"
+    },
+    "dukhan": {
+      "number": 44,
+      "type": "surah"
+    },
+    "al-jathiyah": {
+      "number": 45,
+      "type": "surah"
+    },
+    "jathiyah": {
+      "number": 45,
+      "type": "surah"
+    },
+    "al-ahqaf": {
+      "number": 46,
+      "type": "surah"
+    },
+    "ahqaf": {
+      "number": 46,
+      "type": "surah"
+    },
+    "muhammad": {
+      "number": 47,
+      "type": "surah"
+    },
+    "al-fath": {
+      "number": 48,
+      "type": "surah"
+    },
+    "fath": {
+      "number": 48,
+      "type": "surah"
+    },
+    "al-hujurat": {
+      "number": 49,
+      "type": "surah"
+    },
+    "hujurat": {
+      "number": 49,
+      "type": "surah"
+    },
+    "qaf": {
+      "number": 50,
+      "type": "surah"
+    },
+    "adh-dhariyat": {
+      "number": 51,
+      "type": "surah"
+    },
+    "dhariyat": {
+      "number": 51,
+      "type": "surah"
+    },
+    "at-tur": {
+      "number": 52,
+      "type": "surah"
+    },
+    "tur": {
+      "number": 52,
+      "type": "surah"
+    },
+    "an-najm": {
+      "number": 53,
+      "type": "surah"
+    },
+    "najm": {
+      "number": 53,
+      "type": "surah"
+    },
+    "al-qamar": {
+      "number": 54,
+      "type": "surah"
+    },
+    "qamar": {
+      "number": 54,
+      "type": "surah"
+    },
+    "ar-rahman": {
+      "number": 55,
+      "type": "surah"
+    },
+    "rahman": {
+      "number": 55,
+      "type": "surah"
+    },
+    "al-waqiah": {
+      "number": 56,
+      "type": "surah"
+    },
+    "waqiah": {
+      "number": 56,
+      "type": "surah"
+    },
+    "al-hadid": {
+      "number": 57,
+      "type": "surah"
+    },
+    "hadid": {
+      "number": 57,
+      "type": "surah"
+    },
+    "al-mujadilah": {
+      "number": 58,
+      "type": "surah"
+    },
+    "mujadilah": {
+      "number": 58,
+      "type": "surah"
+    },
+    "al-hashr": {
+      "number": 59,
+      "type": "surah"
+    },
+    "hashr": {
+      "number": 59,
+      "type": "surah"
+    },
+    "al-mumtahanah": {
+      "number": 60,
+      "type": "surah"
+    },
+    "mumtahanah": {
+      "number": 60,
+      "type": "surah"
+    },
+    "as-saff": {
+      "number": 61,
+      "type": "surah"
+    },
+    "saff": {
+      "number": 61,
+      "type": "surah"
+    },
+    "al-jumuah": {
+      "number": 62,
+      "type": "surah"
+    },
+    "jumuah": {
+      "number": 62,
+      "type": "surah"
+    },
+    "al-munafiqun": {
+      "number": 63,
+      "type": "surah"
+    },
+    "munafiqun": {
+      "number": 63,
+      "type": "surah"
+    },
+    "at-taghabun": {
+      "number": 64,
+      "type": "surah"
+    },
+    "taghabun": {
+      "number": 64,
+      "type": "surah"
+    },
+    "at-talaq": {
+      "number": 65,
+      "type": "surah"
+    },
+    "talaq": {
+      "number": 65,
+      "type": "surah"
+    },
+    "at-tahrim": {
+      "number": 66,
+      "type": "surah"
+    },
+    "tahrim": {
+      "number": 66,
+      "type": "surah"
+    },
+    "al-mulk": {
+      "number": 67,
+      "type": "surah"
+    },
+    "mulk": {
+      "number": 67,
+      "type": "surah"
+    },
+    "al-qalam": {
+      "number": 68,
+      "type": "surah"
+    },
+    "qalam": {
+      "number": 68,
+      "type": "surah"
+    },
+    "al-haqqah": {
+      "number": 69,
+      "type": "surah"
+    },
+    "haqqah": {
+      "number": 69,
+      "type": "surah"
+    },
+    "al-maarij": {
+      "number": 70,
+      "type": "surah"
+    },
+    "maarij": {
+      "number": 70,
+      "type": "surah"
+    },
+    "nuh": {
+      "number": 71,
+      "type": "surah"
+    },
+    "al-jinn": {
+      "number": 72,
+      "type": "surah"
+    },
+    "jinn": {
+      "number": 72,
+      "type": "surah"
+    },
+    "al-muzzammil": {
+      "number": 73,
+      "type": "surah"
+    },
+    "muzzammil": {
+      "number": 73,
+      "type": "surah"
+    },
+    "al-muddaththir": {
+      "number": 74,
+      "type": "surah"
+    },
+    "muddaththir": {
+      "number": 74,
+      "type": "surah"
+    },
+    "al-qiyamah": {
+      "number": 75,
+      "type": "surah"
+    },
+    "qiyamah": {
+      "number": 75,
+      "type": "surah"
+    },
+    "al-insan": {
+      "number": 76,
+      "type": "surah"
+    },
+    "insan": {
+      "number": 76,
+      "type": "surah"
+    },
+    "al-mursalat": {
+      "number": 77,
+      "type": "surah"
+    },
+    "mursalat": {
+      "number": 77,
+      "type": "surah"
+    },
+    "an-naba": {
+      "number": 78,
+      "type": "surah"
+    },
+    "naba": {
+      "number": 78,
+      "type": "surah"
+    },
+    "an-naziat": {
+      "number": 79,
+      "type": "surah"
+    },
+    "naziat": {
+      "number": 79,
+      "type": "surah"
+    },
+    "abasa": {
+      "number": 80,
+      "type": "surah"
+    },
+    "at-takwir": {
+      "number": 81,
+      "type": "surah"
+    },
+    "takwir": {
+      "number": 81,
+      "type": "surah"
+    },
+    "al-infitar": {
+      "number": 82,
+      "type": "surah"
+    },
+    "infitar": {
+      "number": 82,
+      "type": "surah"
+    },
+    "al-mutaffifin": {
+      "number": 83,
+      "type": "surah"
+    },
+    "mutaffifin": {
+      "number": 83,
+      "type": "surah"
+    },
+    "al-inshiqaq": {
+      "number": 84,
+      "type": "surah"
+    },
+    "inshiqaq": {
+      "number": 84,
+      "type": "surah"
+    },
+    "al-buruj": {
+      "number": 85,
+      "type": "surah"
+    },
+    "buruj": {
+      "number": 85,
+      "type": "surah"
+    },
+    "at-tariq": {
+      "number": 86,
+      "type": "surah"
+    },
+    "tariq": {
+      "number": 86,
+      "type": "surah"
+    },
+    "al-ala": {
+      "number": 87,
+      "type": "surah"
+    },
+    "ala": {
+      "number": 87,
+      "type": "surah"
+    },
+    "al-ghashiyah": {
+      "number": 88,
+      "type": "surah"
+    },
+    "ghashiyah": {
+      "number": 88,
+      "type": "surah"
+    },
+    "al-fajr": {
+      "number": 89,
+      "type": "surah"
+    },
+    "fajr": {
+      "number": 89,
+      "type": "surah"
+    },
+    "al-balad": {
+      "number": 90,
+      "type": "surah"
+    },
+    "balad": {
+      "number": 90,
+      "type": "surah"
+    },
+    "ash-shams": {
+      "number": 91,
+      "type": "surah"
+    },
+    "shams": {
+      "number": 91,
+      "type": "surah"
+    },
+    "al-layl": {
+      "number": 92,
+      "type": "surah"
+    },
+    "layl": {
+      "number": 92,
+      "type": "surah"
+    },
+    "ad-duha": {
+      "number": 93,
+      "type": "surah"
+    },
+    "duha": {
+      "number": 93,
+      "type": "surah"
+    },
+    "ash-sharh": {
+      "number": 94,
+      "type": "surah"
+    },
+    "sharh": {
+      "number": 94,
+      "type": "surah"
+    },
+    "at-tin": {
+      "number": 95,
+      "type": "surah"
+    },
+    "tin": {
+      "number": 95,
+      "type": "surah"
+    },
+    "al-alaq": {
+      "number": 96,
+      "type": "surah"
+    },
+    "alaq": {
+      "number": 96,
+      "type": "surah"
+    },
+    "al-qadr": {
+      "number": 97,
+      "type": "surah"
+    },
+    "qadr": {
+      "number": 97,
+      "type": "surah"
+    },
+    "al-bayyinah": {
+      "number": 98,
+      "type": "surah"
+    },
+    "bayyinah": {
+      "number": 98,
+      "type": "surah"
+    },
+    "az-zalzalah": {
+      "number": 99,
+      "type": "surah"
+    },
+    "zalzalah": {
+      "number": 99,
+      "type": "surah"
+    },
+    "al-adiyat": {
+      "number": 100,
+      "type": "surah"
+    },
+    "adiyat": {
+      "number": 100,
+      "type": "surah"
+    },
+    "al-qariah": {
+      "number": 101,
+      "type": "surah"
+    },
+    "qariah": {
+      "number": 101,
+      "type": "surah"
+    },
+    "at-takathur": {
+      "number": 102,
+      "type": "surah"
+    },
+    "takathur": {
+      "number": 102,
+      "type": "surah"
+    },
+    "al-asr": {
+      "number": 103,
+      "type": "surah"
+    },
+    "asr": {
+      "number": 103,
+      "type": "surah"
+    },
+    "al-humazah": {
+      "number": 104,
+      "type": "surah"
+    },
+    "humazah": {
+      "number": 104,
+      "type": "surah"
+    },
+    "al-fil": {
+      "number": 105,
+      "type": "surah"
+    },
+    "fil": {
+      "number": 105,
+      "type": "surah"
+    },
+    "quraysh": {
+      "number": 106,
+      "type": "surah"
+    },
+    "al-maun": {
+      "number": 107,
+      "type": "surah"
+    },
+    "maun": {
+      "number": 107,
+      "type": "surah"
+    },
+    "al-kawthar": {
+      "number": 108,
+      "type": "surah"
+    },
+    "kawthar": {
+      "number": 108,
+      "type": "surah"
+    },
+    "al-kafirun": {
+      "number": 109,
+      "type": "surah"
+    },
+    "kafirun": {
+      "number": 109,
+      "type": "surah"
+    },
+    "an-nasr": {
+      "number": 110,
+      "type": "surah"
+    },
+    "nasr": {
+      "number": 110,
+      "type": "surah"
+    },
+    "al-masad": {
+      "number": 111,
+      "type": "surah"
+    },
+    "masad": {
+      "number": 111,
+      "type": "surah"
+    },
+    "al-ikhlas": {
+      "number": 112,
+      "type": "surah"
+    },
+    "ikhlas": {
+      "number": 112,
+      "type": "surah"
+    },
+    "akhlas": {
+      "number": 112,
+      "type": "surah"
+    },
+    "al-falaq": {
+      "number": 113,
+      "type": "surah"
+    },
+    "falaq": {
+      "number": 113,
+      "type": "surah"
+    },
+    "an-nas": {
+      "number": 114,
+      "type": "surah"
+    },
+    "nas": {
+      "number": 114,
+      "type": "surah"
+    },
+    "ayat-kursi": {
+      "number": 2,
+      "verse": 255
+    },
+    "kursi": {
+      "number": 2,
+      "verse": 255
+    },
+    "last-verses-baqarah": {
+      "number": 2,
+      "verse": 285
+    }
+  },
+  "response_templates": {
+    "welcome": "🌟 **Assalamu Alaikum wa Rahmatullahi wa Barakatuh!**\n\nI'm {agent_name}, your Islamic AI assistant. I can help you with:\n\n📖 **Quran**: \"Show me Surah Al-Fatiha\" or \"Search for verses about patience\"\n⭐ **Hadith**: \"Tell me a hadith about kindness\" or \"Random hadith\"\n🕐 **Prayer Times**: Use the location button for accurate times\n🧭 **Qibla Direction**: Use the location button for precise direction\n🤲 **Duas**: \"Morning dua\" or \"Travel dua\"\n📅 **Islamic Calendar**: \"Current Hijri date\"\n📚 **Guidance**: \"What does Islam say about patience?\"\n🔍 **Search**: \"Search for content about charity\"\n\nHow may I assist you in your Islamic journey today?",
+    "location_required": "📍 For {service}, please share your location or use the location button in the interface.",
+    "error_general": "❌ I apologize, but I encountered an error: {error}. Please try again or rephrase your question."
+  },
+  "keywords": {
+    "quran": [
+      "quran",
+      "verse",
+      "surah",
+      "ayah",
+      "al-fatiha",
+      "ayat"
+    ],
+    "hadith": [
+      "hadith",
+      "prophet",
+      "sunnah"
+    ],
+    "prayer": [
+      "prayer",
+      "salah",
+      "time"
+    ],
+    "qibla": [
+      "qibla",
+      "direction",
+      "kaaba"
+    ],
+    "dua": [
+      "dua",
+      "supplication"
+    ],
+    "date": [
+      "date",
+      "hijri",
+      "calendar"
+    ],
+    "daily": [
+      "daily",
+      "today"
+    ],
+    "guidance": [
+      "guidance",
+      "advice",
+      "help",
+      "islam"
+    ]
+  },
+  "api_settings": {
+    "quran_api": {
+      "base_url": "http://api.alquran.cloud/v1",
+      "editions": {
+        "arabic": "quran-uthmani",
+        "english": "en.sahih",
+        "english_asad": "en.asad",
+        "english_pickthall": "en.pickthall"
+      }
+    },
+    "prayer_api": {
+      "base_url": "https://api.aladhan.com/v1",
+      "method": 2
+    },
+    "cache_duration_hours": 24
+  }
+}

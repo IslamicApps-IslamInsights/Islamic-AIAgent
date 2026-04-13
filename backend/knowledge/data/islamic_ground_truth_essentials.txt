@@ -1,0 +1,87 @@
+═══════════════════════════════════════════════════════════════
+ISLAMIC GROUND TRUTH ESSENTIALS — AUTHORITATIVE METADATA
+═══════════════════════════════════════════════════════════════
+Source: Verified authentic consensus (Quranic Sciences, Seerah)
+Status: MANDATORY REFERENCE FOR FACTUAL QUERIES
+
+═══════════════════════════════
+SECTION 1: THE HOLY QURAN METADATA
+═══════════════════════════════
+
+[STRUCTURE]
+- Total Surahs (Chapters): 114
+- Total Ayahs (Verses): 6,236 (standard Uthmani count)
+- Total Juz (Parts): 30
+- Total Manzils: 7
+- Total Words: Approximately 77,430
+- Total Letters: Approximately 320,015
+
+[SURAH EXTREMES]
+- Longest Surah: Surah Al-Baqarah (Chapter 2) — 286 verses.
+- Shortest Surah: Surah Al-Kawthar (Chapter 108) — 3 verses.
+- Most Mentioned Prophet in Quran: Prophet Musa (Moses) عليه السلام (mentioned 136 times).
+
+[REVELATION CATEGORIES]
+- Meccan Surahs: 86 (Revealed before Hijra). Focus on Tawheed, Afterlife, and Character.
+- Medinan Surahs: 28 (Revealed after Hijra). Focus on Law, Society, and State.
+
+[SAJDAH (PROSTRATIONS)]
+- Total Sajdah Verses: 15 (Verses where prostration is recommended upon recitation).
+
+═══════════════════════════════
+SECTION 2: SEERAH — LIFE OF PROPHET MUHAMMAD ﷺ
+═══════════════════════════════
+
+[DATES]
+- Birth: 12th Rabi' al-Awwal, Year of the Elephant (approx. 570 or 571 CE).
+- First Revelation (Wahi): Age 40 (610 CE) in Cave Hira.
+- Hijra (Migration to Medina): 622 CE (Marks the start of the Hijri Calendar).
+- Death: 12th Rabi' al-Awwal, 11 AH (632 CE).
+
+[FAMILY — THE MOTHERS OF THE BELIEVERS (WIVES)]
+1. Khadija bint Khuwaylid (First wife, mother of most children).
+2. Sawda bint Zamʿa.
+3. Aisha bint Abu Bakr (Daughter of Abu Bakr الصديق).
+4. Hafsa bint Umar (Daughter of Umar بن الخطاب).
+5. Zaynab bint Khuzayma.
+6. Umm Salama (Hind bint Abi Umayya).
+7. Zaynab bint Jahsh.
+8. Juwayriya bint al-Harith.
+9. Umm Habiba (Ramlah bint Abu Sufyan).
+10. Safiyya bint Huyayy.
+11. Maymunah bint al-Harith.
+12. Maria al-Qibtiyya (Mother of Ibrahim).
+
+[CHILDREN OF THE PROPHET ﷺ]
+- Sons (3): Al-Qasim, Abd-Allah, Ibrahim. (All died in infancy).
+- Daughters (4): Zaynab, Ruqayya, Umm Kulthum, Fatima az-Zahra.
+- Grandchildren (via Fatima): Al-Hasan (born 3 AH), Al-Hussain (born 4 AH).
+
+═══════════════════════════════
+SECTION 3: THE SAHABA (COMPANIONS) — FIRSTS
+═══════════════════════════════
+
+[FIRST CONVERTS]
+- First to embrace Islam: Khadija bint Khuwaylid (Prophet's wife).
+- First male to embrace Islam: Ali ibn Abi Talib (Prophet's cousin, then a child).
+- First free adult man to embrace Islam: Abu Bakr as-Siddiq.
+- First freed slave to embrace Islam: Zayd ibn Haritha.
+- First Mu'adhin (Caller to Prayer): Bilal ibn Rabah.
+
+[THE ASHARA MUBASHARA (10 PROMISED PARADISE)]
+1. Abu Bakr as-Siddiq
+2. Umar ibn al-Khattab
+3. Uthman ibn Affan
+4. Ali ibn Abi Talib
+5. Talha ibn Ubayd-Allah
+6. Zubayr ibn al-Awwam
+7. Abdur-Rahman ibn Awf
+8. Sa'd ibn Abi Waqqas
+9. Sa'id ibn Zayd
+10. Abu Ubayda ibn al-Jarrah
+
+═══════════════════════════════
+END OF GROUND TRUTH ESSENTIALS
+═══════════════════════════════
+Compiled for TheIslamInsights.com — Islamic AI Agent Knowledge Base
+Sources: Quranic Sciences, Sahih Hadith, authenticated Seerah.

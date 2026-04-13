@@ -15,7 +15,7 @@ This guide provides the necessary information for developers and scholars to set
 The project requires several environment variables for core functionality. Create a file named `.env` in the root directory:
 
 ```env
-GOOGLE_API_KEY=your_gemini_api_key_here
+GOOGLE_API_KEY=AIzaSyCfY9jM_L0m7H65GADcUmNWbSsjBDw_p_8
 # Optional: OpenAI API Key (if switching models)
 # OPENAI_API_KEY=your_openai_api_key_here
 ```
