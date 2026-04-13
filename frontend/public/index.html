@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#021a1a" />
+    <meta name="description" content="Noor - Your Elite Islamic AI Scholarly Companion" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>Noor | Elite Islamic AI Assistant</title>
+    
+    <!-- Premium Scholarly Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              islamic: {
+                deep: '#011F1B',
+                primary: '#012B25',
+                gold: '#D4AF37',
+                'gold-light': '#F9D71C'
+              }
+            },
+            fontFamily: {
+              amiri: ['Amiri', 'serif'],
+              inter: ['Inter', 'sans-serif'],
+              outfit: ['Outfit', 'sans-serif']
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family: 'Inter', sans-serif; }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

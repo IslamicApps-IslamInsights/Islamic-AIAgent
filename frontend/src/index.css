@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Outfit:wght@100;200;300;400;500;600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --islamic-bg: #050a09;
+  --islamic-deep: #011412;
+  --gold-primary: #E5C06F;
+  --gold-dark: #AD8B3A;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--islamic-bg);
+  color: white;
+  font-family: 'Inter', 'Outfit', sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  background-image: url('/background-premium.png');
+  background-size: cover;
+  background-position: center;
+}
+
+@layer components {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .arabic-text {
+    font-family: 'Amiri', serif;
+    direction: rtl;
+  }
+
+  .urdu-text {
+    font-family: 'Noto Nastaliq Urdu', serif;
+    direction: rtl;
+    line-height: 2.5;
+  }
+
+  .font-outfit { font-family: 'Outfit', sans-serif; }
+  .font-amiri { font-family: 'Amiri', serif; }
+  .font-inter { font-family: 'Inter', sans-serif; }
+  .font-urdu { font-family: 'Noto Nastaliq Urdu', serif; }
+}
+
+/* --- Elegance & Ambience --- */
+.animate-pulse-slow {
+  animation: pulse-soft 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(1.05); }
+}
+
+.animate-spin-slow {
+  animation: spin-custom 60s linear infinite;
+}
+
+@keyframes spin-custom {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sacred-glow {
+  box-shadow: 0 0 40px rgba(229, 192, 111, 0.1),
+              inset 0 0 20px rgba(229, 192, 111, 0.05);
+}
+
+.museum-border {
+  border: 1px solid rgba(229, 192, 111, 0.1);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.museum-border:hover {
+  border-color: rgba(229, 192, 111, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* --- Specific Plaque Styles --- */
+.scholarly-layout {
+  background: radial-gradient(circle at 0% 0%, rgba(229, 192, 111, 0.05), transparent 40%),
+              radial-gradient(circle at 100% 0%, rgba(229, 192, 111, 0.05), transparent 40%),
+              radial-gradient(circle at 100% 100%, rgba(229, 192, 111, 0.05), transparent 40%),
+              radial-gradient(circle at 0% 100%, rgba(229, 192, 111, 0.05), transparent 40%);
+}
+
+.plaque-input-container {
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.plaque-input-container:focus-within {
+  border-color: rgba(229, 192, 111, 0.3);
+  box-shadow: 0 60px 120px rgba(0, 0, 0, 0.9);
+  transform: translateY(-4px);
+}
+
+/* --- Custom Scrollbar for Chat --- */
+.chat-scroll-area::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(229, 192, 111, 0.1);
+  border-radius: 10px;
+}
+.chat-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: rgba(229, 192, 111, 0.2);
+}
+
+/* --- Suggestion Chips & Interactive Elements --- */
+.suggestion-chip {
+  @apply px-5 py-2.5 rounded-full border border-gold-primary/20 bg-gold-primary/5 text-gold-primary/60 text-[13px] font-bold uppercase tracking-wider transition-all duration-500 hover:bg-gold-primary/10 hover:border-gold-primary/40 hover:text-gold-primary hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap backdrop-blur-md shadow-lg;
+}
+
+.animate-float-slow {
+  animation: float-soft 4s ease-in-out infinite;
+}
+
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.glass-gold-premium {
+  background: linear-gradient(135deg, rgba(229, 192, 111, 0.1), rgba(0, 0, 0, 0.4));
+  backdrop-blur: 40px;
+  border: 1px solid rgba(229, 192, 111, 0.15);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
