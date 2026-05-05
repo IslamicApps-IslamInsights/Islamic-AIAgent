@@ -757,8 +757,8 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
         try {
           setInitializationRetry(retries + 1);
           
-          // Check backend health
-          const healthCheck = await fetch(`${apiUrl}/api/health`, { 
+          // Check backend connectivity
+          const healthCheck = await fetch(`${apiUrl}/api/readiness/status`, { 
             signal: AbortSignal.timeout(3000) 
           }).catch(() => null);
           
@@ -803,11 +803,11 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
     setIsLoadingIslamicData(true);
     try {
       // Verify backend is reachable
-      const healthCheck = await fetch(`${apiUrl}/api/health`, { 
+      const healthCheck = await fetch(`${apiUrl}/api/readiness/status`, { 
         signal: AbortSignal.timeout(3000) 
       }).catch(() => null);
       
-      if (!healthCheck) {
+      if (!healthCheck || !healthCheck.ok) {
         console.warn("Backend not reachable at", apiUrl);
         showToast(`⚠️ Backend unavailable at ${apiUrl}. Please start: python3 backend/api/web_api.py`);
         setIsLoadingIslamicData(false);
@@ -988,12 +988,12 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
       }
 
       // Verify backend is reachable
-      const healthCheck = await fetch(`${apiUrl}/api/health`, {
+      const healthCheck = await fetch(`${apiUrl}/api/readiness/status`, {
         signal: AbortSignal.timeout(2000)
       }).catch(() => null);
 
       if (!healthCheck) {
-        throw new Error(`BACKEND_NOT_REACHABLE: ${apiUrl}/api/health`);
+        throw new Error(`BACKEND_NOT_REACHABLE: ${apiUrl}/api/readiness/status`);
       }
 
       const response = await fetch(endpoint, {

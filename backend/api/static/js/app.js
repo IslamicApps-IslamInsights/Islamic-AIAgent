@@ -66,14 +66,13 @@ class IslamicAIApp {
 
     async checkHealth() {
         try {
-            const response = await fetch('/api/health');
+            const response = await fetch('/api/readiness/status');
             const data = await response.json();
 
-            if (data.agent_initialized) {
+            if (data.ready_for_frontend || data?.readiness?.core_ready) {
                 this.addMessage('🌟 Islamic AI Agent is ready to help you!', 'agent');
             } else {
-                this.addMessage('⚠️ AI Agent is initializing... Attempting to initialize now.', 'agent');
-                await this.initializeAgents();
+                this.addMessage('⚠️ AI Agent is initializing... Please wait a moment.', 'agent');
             }
         } catch (error) {
             this.addMessage('❌ Unable to connect to the AI service. Please refresh the page.', 'agent');
@@ -144,14 +143,14 @@ class IslamicAIApp {
 
     async checkAgentStatus() {
         try {
-            const response = await fetch('/api/health');
+            const response = await fetch('/api/readiness/status');
             const data = await response.json();
 
-            if (data.status === 'healthy' && data.agents_ready && data.services.rag_ready) {
+            if (data.ready_for_frontend || data?.readiness?.core_ready) {
                 console.log('✅ System Ready - AI Agent fully operational');
                 document.getElementById('statusIndicator')?.classList.add('ready');
                 return true;
-            } else if (data.status === 'healthy') {
+            } else if (data.status === 'success') {
                 console.log('⏳ System initializing... please wait');
                 // Retry after delay
                 setTimeout(() => this.checkAgentStatus(), 2000);
