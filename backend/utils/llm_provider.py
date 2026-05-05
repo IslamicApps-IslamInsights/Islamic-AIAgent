@@ -4,8 +4,10 @@ Uses Google Gemini as the primary LLM – no OpenAI dependency.
 """
 
 import os
-import time
 import logging
+import threading
+import re
+import time
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from tenacity import (
@@ -13,7 +15,6 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
     retry_if_exception,
-    retry_if_result,
 )
 
 load_dotenv()
@@ -21,45 +22,170 @@ load_dotenv()
 # Logger setup
 logger = logging.getLogger("NoorLLM")
 
+_LOCAL_LLM_STOP_TOKENS = [
+    "</final>",
+    "<Thought>",
+    "</Thought>",
+    "<Output>",
+    "</Output>",
+    "<think>",
+    "</think>",
+]
+
+_AUTO_LOCAL_LLM_BACKEND: Optional[str] = None
+_AUTO_LOCAL_LLM_BACKEND_TS: float = 0.0
+
+
+def _detect_local_llm_backend() -> Optional[str]:
+    global _AUTO_LOCAL_LLM_BACKEND, _AUTO_LOCAL_LLM_BACKEND_TS
+    now = time.time()
+    if now - _AUTO_LOCAL_LLM_BACKEND_TS < 5.0:
+        return _AUTO_LOCAL_LLM_BACKEND
+    _AUTO_LOCAL_LLM_BACKEND_TS = now
+
+    try:
+        import requests
+
+        base_url = (os.getenv("LLAMA_CPP_SERVER_URL") or "").strip() or "http://localhost:8080"
+        models_url = base_url.rstrip("/") + "/v1/models"
+        resp = requests.get(models_url, timeout=0.8)
+        if resp.status_code == 200:
+            _AUTO_LOCAL_LLM_BACKEND = "llama_cpp_server"
+            return _AUTO_LOCAL_LLM_BACKEND
+    except Exception:
+        pass
+
+    _AUTO_LOCAL_LLM_BACKEND = None
+    return None
+
+
+def _sanitize_user_facing_answer(text: str) -> Optional[str]:
+    if not isinstance(text, str):
+        return None
+
+    cleaned = text.strip()
+    if not cleaned:
+        return None
+
+    cleaned = cleaned.split("</final>")[0].strip()
+
+    output_match = re.search(r"(?is)<output>(.*?)</output>", cleaned)
+    if output_match:
+        cleaned = (output_match.group(1) or "").strip()
+    else:
+        cleaned = re.sub(r"(?is)<thought>.*?</thought>", "", cleaned).strip()
+        cleaned = re.sub(r"(?is)<think>.*?</think>", "", cleaned).strip()
+        cleaned = re.split(r"(?i)<thought>|<think>|<output>", cleaned, maxsplit=1)[0].strip()
+
+    cleaned = re.sub(r"(?is)```.*?```", "", cleaned).strip()
+    if not cleaned:
+        return None
+
+    cleaned = re.sub(
+        r"(?m)^\s*\*\*\s*(\d+[\)\.]\s*[^*]+?)\s*\*\*\s*$",
+        r"\1",
+        cleaned,
+    ).strip()
+
+    m = re.search(r"(?m)^\s*(?:\*\*)?\s*1[\)\.]\s+", cleaned)
+    if m and m.start() > 0:
+        cleaned = cleaned[m.start():].strip()
+
+    if not re.search(r"(?m)^\s*(?:\*\*)?\s*1[\)\.]\s+", cleaned):
+        return None
+
+    return cleaned.strip() or None
+
+
+def _inject_source_references(answer: str, evidence: str) -> str:
+    if not isinstance(answer, str) or not answer.strip():
+        return answer
+
+    evidence_map: Dict[str, str] = {}
+    for line in (evidence or "").splitlines():
+        m = re.match(r"^\[Source\s+(\d+)\]\s+(.+)\s*$", line.strip())
+        if m:
+            evidence_map[m.group(1)] = m.group(2).strip()
+
+    if not evidence_map:
+        return answer
+
+    lines = answer.splitlines()
+    out: List[str] = []
+    in_sources = False
+    seen: set[str] = set()
+
+    for line in lines:
+        raw = line.rstrip()
+        stripped = raw.strip()
+
+        if re.match(r"(?i)^\s*4[\)\.]\s*sources\b", stripped):
+            in_sources = True
+            out.append(raw)
+            continue
+
+        if not in_sources:
+            out.append(raw)
+            continue
+
+        m = re.search(r"\[Source\s+(\d+)\]", stripped)
+        if not m:
+            if stripped:
+                out.append(raw)
+            continue
+
+        n = m.group(1)
+        if n in seen:
+            continue
+        seen.add(n)
+
+        ref = evidence_map.get(n)
+        if ref:
+            out.append(f"- [Source {n}] {ref}")
+        else:
+            out.append(f"- [Source {n}]")
+
+    return "\n".join(out).strip()
+
+
 def is_429_error(exception):
     """Check if the exception is a 429 quota error."""
     return "429" in str(exception) or "RESOURCE_EXHAUSTED" in str(exception)
+
+
+def _before_sleep(retry_state):
+    sleep_s = retry_state.next_action.sleep
+    attempt = retry_state.attempt_number
+    msg = f"⚠️  Quota hit (429). Retrying in {sleep_s}s... (Attempt {attempt})"
+    print(msg)
+
 
 # Unified retry decorator for Gemini calls
 gemini_retry = retry(
     retry=retry_if_exception(is_429_error),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     stop=stop_after_attempt(3),
-    before_sleep=lambda retry_state: print(f"⚠️  Quota hit (429). Retrying in {retry_state.next_action.sleep}s... (Attempt {retry_state.attempt_number})"),
+    before_sleep=_before_sleep,
     reraise=True
 )
 
 _gemini_client = None
 _agentscope_initialized = False
+_agentscope_lock = threading.Lock()
+_agentscope_model = None
 
 
 def get_gemini_client():
     """Return a cached google.genai Client instance."""
-    global _gemini_client
-    if _gemini_client is not None:
-        return _gemini_client
-
-    from google import genai
-
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError(
-            "GOOGLE_API_KEY is required. Set it in your .env file."
-        )
-
-    _gemini_client = genai.Client(api_key=api_key)
-    return _gemini_client
+    raise RuntimeError(
+        "External LLMs are disabled (local-only mode)."
+    )
 
 
 # Convenience: keep a model-name constant
-# Primary model for production (Using stable and fast 2.5-flash to prevent 503 errors)
+# Primary model constants (kept for compatibility)
 GEMINI_MODEL = "gemini-2.5-flash"
-GEMINI_PRO_MODEL = "gemini-2.5-pro" # For complex synthesis
+GEMINI_PRO_MODEL = "gemini-2.5-pro"
 
 
 # ---------------------------------------------------------------------------
@@ -68,37 +194,14 @@ GEMINI_PRO_MODEL = "gemini-2.5-pro" # For complex synthesis
 
 def init_agentscope():
     """Initialize AgentScope 1.0.18 context."""
-    import agentscope
-    global _agentscope_initialized
-    if not _agentscope_initialized:
-        agentscope.init(
-            project="IslamicAI", 
-            name="NoorSession"
-        )
-        _agentscope_initialized = True
-        print(f"✅ AgentScope global context initialized.")
+    return None
+
 
 def get_agentscope_model():
     """
-    Initialize AgentScope and register the Gemini model configuration.
-    Returns the config name.
+    Initialize AgentScope and return a GeminiChatModel instance.
     """
-    import agentscope
-    api_key = os.getenv("GOOGLE_API_KEY", "")
-    config = {
-        "config_name": "gemini_config",
-        "model_type": "gemini_chat",
-        "model_name": GEMINI_MODEL,
-        "api_key": api_key
-    }
-    
-    # In AgentScope 0.1.6, we use agentscope.init with model_configs
-    agentscope.init(
-        project="IslamicAI",
-        name="NoorSession",
-        model_configs=[config]
-    )
-    return "gemini_config"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -117,10 +220,9 @@ def register_islamic_tool(toolkit, func):
         return str(result) if result is not None else "No result"
 
     # Use register_tool_function for AgentScope 1.0.18
-    if hasattr(toolkit, 'register_tool_function'):
+    if hasattr(toolkit, "register_tool_function"):
         toolkit.register_tool_function(_wrapped)
     else:
-        # Fallback to legacy add method if still available
         toolkit.add(_wrapped)
 
 
@@ -128,54 +230,421 @@ def register_islamic_tool(toolkit, func):
 # Scholarly synthesis (replaces OpenAI-based _synthesize_scholarly_response)
 # ---------------------------------------------------------------------------
 
-@gemini_retry
-def synthesize_scholarly_response(
-    question: str,
-    context: str,
-    *,
-    metadata: Optional[Dict] = None,
-    client=None,
-    include_thoughts: bool = False,
-    rag_display: str = None   # Pre-formatted RAG response — primary fallback
-) -> Any:
-    """
-    RAG-First synthesis. Gemini polishes the response when available.
-    If Gemini fails, rag_display is returned — never an error string.
-
-    Returns:
-        If include_thoughts is True: Tuple[str, Optional[str]] (text, thoughts)
-        Else: str (text only)
-    """
-    # Build metadata string for grounding
 def call_local_llm(prompt: str) -> Optional[str]:
-    """Helper to call local Ollama/LM Studio if available."""
-    import requests
-    local_url = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+    backend = (os.getenv("LOCAL_LLM_BACKEND") or "").strip().lower()
+    if not backend:
+        backend = (_detect_local_llm_backend() or "").strip().lower()
+    if not backend:
+        return None
+
+    if backend == "ollama":
+        return _call_ollama(prompt)
+
+    if backend == "llama_cpp_server":
+        return _call_llama_cpp_server(prompt)
+
+    if backend == "llama_cpp_python":
+        return _call_llama_cpp_python(prompt)
+
+    return None
+
+
+def get_local_llm_status() -> Dict[str, Any]:
+    backend = (os.getenv("LOCAL_LLM_BACKEND") or "").strip().lower()
+    if not backend:
+        backend = (_detect_local_llm_backend() or "").strip().lower()
+    if not backend:
+        return {"enabled": False, "backend": None, "reachable": False}
+
+    if backend == "llama_cpp_server":
+        import requests
+
+        base_url = (os.getenv("LLAMA_CPP_SERVER_URL") or "").strip() or "http://localhost:8080"
+        model_path = (os.getenv("LOCAL_LLM_MODEL_PATH") or "").strip()
+        model_exists = bool(model_path) and os.path.exists(model_path)
+        models_url = base_url.rstrip("/") + "/v1/models"
+        timeout_s = float(os.getenv("LOCAL_LLM_PING_TIMEOUT", "2.5"))
+        try:
+            resp = requests.get(models_url, timeout=timeout_s)
+            if resp.status_code != 200:
+                return {
+                    "enabled": True,
+                    "backend": backend,
+                    "reachable": False,
+                    "base_url": base_url,
+                    "model_path": model_path,
+                    "model_exists": model_exists,
+                    "error": f"HTTP {resp.status_code}",
+                }
+            data = resp.json()
+            model_ids = []
+            if isinstance(data, dict) and isinstance(data.get("data"), list):
+                for item in data["data"]:
+                    if isinstance(item, dict) and isinstance(item.get("id"), str):
+                        model_ids.append(item["id"])
+            return {
+                "enabled": True,
+                "backend": backend,
+                "reachable": True,
+                "base_url": base_url,
+                "model_path": model_path,
+                "model_exists": model_exists,
+                "models": model_ids[:5],
+            }
+        except Exception as e:
+            return {
+                "enabled": True,
+                "backend": backend,
+                "reachable": False,
+                "base_url": base_url,
+                "model_path": model_path,
+                "model_exists": model_exists,
+                "error": str(e),
+            }
+
+    if backend == "llama_cpp_python":
+        model_path = (os.getenv("LOCAL_LLM_MODEL_PATH") or "").strip()
+        ok = bool(model_path) and os.path.exists(model_path)
+        try:
+            import llama_cpp  # type: ignore
+
+            _ = llama_cpp
+            import_ok = True
+        except Exception as e:
+            import_ok = False
+            import_err = str(e)
+        status = {"enabled": True, "backend": backend, "model_path": model_path, "exists": ok, "reachable": ok and import_ok}
+        if not import_ok:
+            status["error"] = import_err
+        return status
+
+    if backend == "ollama":
+        import requests
+
+        base_url = os.getenv("OLLAMA_URL", "http://localhost:11434").strip()
+        tags_url = base_url.rstrip("/") + "/api/tags"
+        timeout_s = float(os.getenv("LOCAL_LLM_PING_TIMEOUT", "2.5"))
+        try:
+            resp = requests.get(tags_url, timeout=timeout_s)
+            if resp.status_code != 200:
+                return {"enabled": True, "backend": backend, "reachable": False, "base_url": base_url, "error": f"HTTP {resp.status_code}"}
+            return {"enabled": True, "backend": backend, "reachable": True, "base_url": base_url}
+        except Exception as e:
+            return {"enabled": True, "backend": backend, "reachable": False, "base_url": base_url, "error": str(e)}
+
+    return {"enabled": True, "backend": backend, "reachable": False, "error": "Unsupported backend"}
+
+
+def _parse_source_blocks(kb_results: str) -> List[Dict[str, str]]:
+    if not isinstance(kb_results, str) or not kb_results.strip():
+        return []
+
+    blocks: List[Dict[str, str]] = []
+    pattern = r"\[Source\s+([^\]]+)\]\s+([^\n]+)\n((?:[^\n]|\n(?!\[Source))*)"
+    for match in re.finditer(pattern, kb_results):
+        src_id = (match.group(1) or "").strip()
+        reference = (match.group(2) or "").strip()
+        content = (match.group(3) or "").strip()
+        if content:
+            blocks.append({"id": src_id, "reference": reference, "content": content})
+    return blocks
+
+
+def build_evidence_pack(
+    kb_results: str,
+    max_sources: int = 6,
+    max_chars_per_source: int = 700,
+) -> str:
+    blocks = _parse_source_blocks(kb_results)
+    if not blocks:
+        return (kb_results or "").strip()
+
+    packed: List[str] = []
+    for i, b in enumerate(blocks[:max_sources], 1):
+        ref = (b.get("reference") or "").strip()
+        content = (b.get("content") or "").strip()
+        if not content:
+            continue
+
+        content = re.sub(r"<sup[^>]*>.*?</sup>", "", content, flags=re.IGNORECASE).strip()
+        content = re.sub(r"<[^>]+>", "", content).strip()
+        content = " ".join(content.split())
+        if len(content) > max_chars_per_source:
+            content = content[:max_chars_per_source].rstrip() + "…"
+
+        packed.append(f"[Source {i}] {ref}")
+        packed.append(content)
+        packed.append("")
+
+    return "\n".join(packed).strip()
+
+
+_llama_cpp_lock = threading.Lock()
+_llama_cpp_instance = None
+
+
+def _call_llama_cpp_python(prompt: str) -> Optional[str]:
+    model_path = (os.getenv("LOCAL_LLM_MODEL_PATH") or "").strip()
+    if not model_path:
+        return None
+
+    global _llama_cpp_instance
+    with _llama_cpp_lock:
+        if _llama_cpp_instance is None:
+            try:
+                from llama_cpp import Llama
+            except Exception:
+                return None
+
+            n_ctx = int(os.getenv("LOCAL_LLM_CTX", "4096"))
+            n_threads = int(os.getenv("LOCAL_LLM_THREADS", "4"))
+            n_gpu_layers = int(os.getenv("LOCAL_LLM_GPU_LAYERS", "0"))
+            _llama_cpp_instance = Llama(
+                model_path=model_path,
+                n_ctx=n_ctx,
+                n_threads=n_threads,
+                n_gpu_layers=n_gpu_layers,
+                logits_all=False,
+                verbose=False,
+            )
+
     try:
-        response = requests.post(local_url, json={
-            "model": "llama3", # Default but can be configured
-            "prompt": prompt,
-            "stream": False
-        }, timeout=10)
+        max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "900"))
+        temperature = float(os.getenv("LOCAL_LLM_TEMPERATURE", "0.4"))
+        out = _llama_cpp_instance.create_completion(
+            prompt=prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stop=_LOCAL_LLM_STOP_TOKENS,
+        )
+        if isinstance(out, dict):
+            choices = out.get("choices") or [{}]
+            text = (choices[0] or {}).get("text")
+        else:
+            text = None
+        return text.strip() if isinstance(text, str) else None
+    except Exception:
+        return None
+
+
+def _call_llama_cpp_server(prompt: str) -> Optional[str]:
+    import requests
+
+    base_url = (os.getenv("LLAMA_CPP_SERVER_URL") or "").strip()
+    if not base_url:
+        base_url = "http://localhost:8080"
+
+    if base_url.endswith("/v1/chat/completions"):
+        url = base_url
+    elif base_url.endswith("/completion"):
+        url = base_url
+    else:
+        url = base_url.rstrip("/") + "/v1/chat/completions"
+
+    max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "900"))
+    temperature = float(os.getenv("LOCAL_LLM_TEMPERATURE", "0.4"))
+    http_timeout_s = float(os.getenv("LOCAL_LLM_HTTP_TIMEOUT", "180"))
+
+    try:
+        if url.endswith("/completion"):
+            payload = {
+                "prompt": prompt,
+                "n_predict": max_tokens,
+                "temperature": temperature,
+                "stop": _LOCAL_LLM_STOP_TOKENS,
+                "stream": False,
+            }
+            resp = requests.post(url, json=payload, timeout=http_timeout_s)
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            text = data.get("content") or data.get("completion")
+            return text.strip() if isinstance(text, str) else None
+
+        payload = {
+            "model": "local-model",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful Islamic teacher. "
+                        "Be warm, respectful, and practical. "
+                        "No emojis. "
+                        "Never output reasoning or planning. "
+                        "Never output <Thought>/<think> tags. "
+                        "Only write the final user-facing answer."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stop": _LOCAL_LLM_STOP_TOKENS,
+            "stream": False,
+        }
+        resp = requests.post(url, json=payload, timeout=http_timeout_s)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        choices = data.get("choices") or []
+        if not choices:
+            return None
+        msg = (choices[0] or {}).get("message") or {}
+        content = msg.get("content")
+        return content.strip() if isinstance(content, str) else None
+    except Exception:
+        return None
+
+
+def _call_ollama(prompt: str) -> Optional[str]:
+    import requests
+
+    local_url = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+    model = os.getenv("OLLAMA_MODEL", "llama3")
+    try:
+        response = requests.post(
+            local_url,
+            json={"model": model, "prompt": prompt, "stream": False},
+            timeout=60,
+        )
         if response.status_code == 200:
             return response.json().get("response")
     except Exception:
         pass
     return None
 
-def synthesize_scholarly_response(question: str, context: str, metadata: Dict = None, include_thoughts: bool = False, rag_display: str = None, force_local: bool = False) -> Any:
-    """
-    World-Class Scholarly Synthesis Engine 2.0.
-    Ensures absolute resilience by absorbing API errors and falling back to 
-    high-fidelity local knowledge base results.
-    """
+
+def _fallback_synthesize_from_evidence(question: str, packed_evidence: str) -> str:
+    blocks = _parse_source_blocks(packed_evidence or "")
+    top_blocks = blocks[:2]
+
+    excerpts: List[str] = []
+    cited_ids: List[str] = []
+    for b in top_blocks:
+        src_id = (b.get("id") or "").strip()
+        content = (b.get("content") or "").strip()
+        if not content:
+            continue
+        first_line = content.splitlines()[0].strip()
+        excerpt = first_line if len(first_line) <= 260 else first_line[:260].rstrip() + "…"
+        if src_id:
+            cited_ids.append(src_id)
+        excerpts.append(f"- {excerpt}")
+
+    cited_ids = [c for c in cited_ids if c.isdigit()]
+    cited_ids = list(dict.fromkeys(cited_ids))
+
+    sources_lines = "\n".join([f"- [Source {n}]" for n in cited_ids[:6]]) or "- [Source 1]"
+
+    excerpts_block = "\n".join(excerpts)
+    if excerpts_block:
+        excerpts_block = "\n\nMost relevant excerpts:\n" + excerpts_block
+
+    return (
+        "1) Answer\n"
+        "Assalamu Alaikum wa Rahmatullahi wa Barakatuh.\n\n"
+        "I found relevant Islamic guidance in the local knowledge base.\n"
+        f"{excerpts_block}\n\n"
+        "May Allah grant you clarity and ease as you seek the truth.\n\n"
+        "2) Key points\n"
+        f"- Read and reflect on the cited evidence (e.g., [Source 1]).\n"
+        "- Apply what is clear, and avoid making strong claims beyond the sources.\n"
+        "- If your situation is specific, share details so the guidance fits you.\n\n"
+        "3) Next step\n"
+        f"To guide you better, what is your situation and what outcome are you hoping for?\n\n"
+        "4) Sources\n"
+        f"{sources_lines}\n"
+        "</final>"
+    )
+
+
+def synthesize_from_evidence(
+    question: str,
+    evidence: str,
+    user_profile: Optional[Dict[str, Any]] = None,
+) -> Optional[str]:
+    if not evidence or not isinstance(evidence, str):
+        return None
+
+    packed_evidence = build_evidence_pack(
+        evidence,
+        max_sources=6,
+        max_chars_per_source=700,
+    )
+
+    profile = user_profile or {}
+    user_name = (profile.get("name") or "").strip()
+    user_goal = (profile.get("goal") or "").strip()
+    level = (profile.get("level") or "beginner").strip()
+
+    persona = "a kind, practical Islamic teacher"
+    if level:
+        persona += f" teaching a {level} student"
+
+    name_line = f"The user's name is {user_name}." if user_name else ""
+    goal_line = f"The user's goal is: {user_goal}." if user_goal else ""
+
+    prompt = (
+        "You are " + persona + ".\n"
+        "Write a warm, engaging answer grounded ONLY in the evidence.\n"
+        "Use an Islamic tone that feels caring and practical.\n"
+        "Start with: 'Assalamu Alaikum wa Rahmatullahi wa Barakatuh.'\n"
+        "No emojis.\n"
+        "Use Islamic language when appropriate (Allah, Sunnah, Taqwa).\n"
+        "Add brief English meaning only if it helps the user.\n"
+        "Be encouraging and engaging.\n"
+        "End with 1 short question to guide the next step.\n"
+        "A brief generic closing dua in English is allowed.\n"
+        "It must not introduce new factual claims.\n"
+        "Never reveal your reasoning or planning.\n"
+        "Never output <Thought> or <think> tags.\n"
+        "Never say 'Alright, I need to'.\n"
+        "Do not output anything before the required numbered sections.\n"
+        "If evidence is missing, say you are not sure.\n"
+        "Ask 1 short follow-up.\n"
+        "Cite sources using the same brackets as evidence, like [Source 1].\n"
+        "If you mention a specific dhikr phrase, narration detail, number,\n"
+        "or timing, it MUST be present in the evidence.\n"
+        "Otherwise, do not state it.\n"
+        "Do not mention embeddings, RAG, BM25, vectors, or system details.\n"
+        f"{name_line}\n"
+        f"{goal_line}\n\n"
+        f"Question: {question}\n\n"
+        "Evidence:\n"
+        f"{packed_evidence}\n\n"
+        "Return format (exactly):\n"
+        "1) Answer (short paragraphs)\n"
+        "2) Key points (3 bullets)\n"
+        "3) Next step (1 line, ends with 1 short question)\n"
+        "4) Sources (only cited; each bullet as: - [Source N] <reference>)\n"
+        "</final>\n"
+    )
+
+    text = call_local_llm(prompt)
+    cleaned = _sanitize_user_facing_answer(text)
+    if not cleaned:
+        cleaned = _fallback_synthesize_from_evidence(question, packed_evidence)
+    return _inject_source_references(cleaned, packed_evidence)
+
+
+@gemini_retry
+def synthesize_scholarly_response(
+    question: str,
+    context: str,
+    metadata: Optional[Dict] = None,
+    include_thoughts: bool = False,
+    rag_display: Optional[str] = None,
+    force_local: bool = False,
+) -> Any:
     if force_local:
-        print("🛡️ FORCE_LOCAL Active: Bypassing AI Synthesis for Resilience Demo.")
         if rag_display:
-            if include_thoughts: return rag_display, None
+            if include_thoughts:
+                return rag_display, None
             return rag_display
-        return "Local Resilient mode active. Synthesis bypassed."
-    # ... previous setup ...
+        if include_thoughts:
+            return "Local resilient mode active.", None
+        return "Local resilient mode active."
+
     metadata_str = ""
     if metadata:
         metadata_str = "\n**Real-Time Context:**\n"
@@ -185,18 +654,24 @@ def synthesize_scholarly_response(question: str, context: str, metadata: Dict = 
     synth_prompt = f"""\
 بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 
-You are a world-class Senior Islamic Scholar and Mufti (Imam Hassan). You provide responses that are not only accurate but also deeply spiritual, respectful, and authoritative.
+You are a world-class Senior Islamic Scholar and Mufti (Imam Hassan).
+You provide responses that are accurate, deeply spiritual, respectful,
+and authoritative.
 
 ### INTERNAL SCHOLARLY AUDIT (THOUGHT PROCESS)
 Before responding, perform this internal audit in your thoughts:
-1. **Source Verification**: Does the provided context contain authentic Quranic verses or Sahih Hadiths that directly address {question}? If no, acknowledge this and provide general authentic guidance based on your deep knowledge.
-2. **Context Window Check**: If the context appears expanded (Borders present), read the entire story to ensure no rulings are taken out of context.
-3. **Tone Check**: Ensure the tone is compassionate (Mercy) but firm on truth (Haqq).
+1. **Source Verification**: Does the provided context contain authentic
+   Quranic verses or Sahih Hadiths that directly address: {question}?
+2. **Context Window Check**: If the context appears expanded, read the
+   entire window so rulings are not taken out of context.
+3. **Tone Check**: Ensure compassion (Mercy) and firmness on truth (Haqq).
 
 ### SCHOLARLY MANDATE
-1. **Dynamic Synthesis**: Do not just list sources. Weave them together into a beautiful narrative. Use phrases like "In the light of the Divine revelation..." or "The Prophet's ﷺ noble example teaches us...".
-2. **Arabic Excellence**: Use proper Arabic terms for key concepts (e.g., *Taqwa*, *Ikhlas*, *Sabr*) followed by their English meanings. Always include ﷺ (Sallallahu Alayhi Wasallam) after the Prophet's name.
-3. **Source Grounding**: Heavily prioritize the provided "Retrieved Context". If multiple sources are provided, compare and synthesize them. 
+1. **Dynamic Synthesis**: Weave sources into a coherent narrative.
+2. **Arabic Excellence**: Use Arabic terms (e.g., Taqwa, Ikhlas, Sabr)
+   with English meaning. Include ﷺ after the Prophet's name.
+3. **Source Grounding**: Prioritize the retrieved context. If multiple
+   sources exist, compare and synthesize them.
 4. **Formatting (Aesthetic Excellence)**:
    - Use ****Bold Text**** for section titles and key principles.
    - Use '•' for list items. 
@@ -213,111 +688,55 @@ Before responding, perform this internal audit in your thoughts:
 
 **Response Structure:**
 1. **Greeting**: Assalamu Alaikum wa Rahmatullahi wa Barakatuh.
-2. **The Essence**: A bold heading summarizing the core Islamic principle.
-3. **Detailed Scholarly Guidance**: Comprehensive explanation with cited evidence.
-4. **Practical Application**: Bullet points on how to live this knowledge.
+2. **The Essence**: A bold heading summarizing the core Islamic
+   principle.
+3. **Detailed Scholarly Guidance**: Comprehensive explanation with
+   cited evidence.
+4. **Practical Application**: Bullet points on how to live this
+   knowledge.
 5. **Dua/Closing**: A beautiful closing Dua related to the topic.
-6. **Sources**: Exactly "**Sources:** " followed by a clean list at the very bottom.
+6. **Sources**: Exactly "**Sources:** " followed by a clean list at the
+   very bottom.
 
 **Response:**
 """
+    _ = synth_prompt
 
-    # --- Resilience Logic: Try Local LLM First if over Quota ---
-    local_response = None
-    if os.getenv("USE_LOCAL_LLM", "false").lower() == "true":
-        local_response = call_local_llm(synth_prompt)
-        if local_response:
-            if include_thoughts: return local_response, None
-            return local_response
+    if rag_display:
+        if include_thoughts:
+            return rag_display, None
+        return rag_display
 
-    try:
-        from google.api_core import exceptions
-        gemini_client = get_gemini_client()
-        
-        response = gemini_client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=synth_prompt,
-        )
-        
-        text = response.text if response and response.text else ""
-        thoughts = None
-        
-        # Capture Gemini 3 thoughts if available
-        try:
-            if response and hasattr(response, 'candidates') and response.candidates:
-                content = response.candidates[0].content
-                for part in content.parts:
-                    if hasattr(part, 'thought_signature') and part.thought_signature:
-                        if hasattr(part, 'text') and part.text:
-                            thoughts = part.text
-                        elif hasattr(part, 'thought') and part.thought:
-                            thoughts = part.thought
-        except Exception:
-            pass
-
-        # SUCCESS: Return synthesis
-        if text:
-            if include_thoughts: return text, thoughts
-            return text
-            
-        # FALLBACK: Return premium RAG display if text is empty
-        raise ValueError("Empty response from AI")
-
-    except Exception as e:
-        # DETECT 429: If over quota, switch to Local Knowledge immediately
-        error_str = str(e).lower()
-        if "429" in error_str or "quota" in error_str or "limit" in error_str:
-            print("🛡️ Quota exceeded. Activating Resilience Fallback: Premium Local Knowledge Responder.")
-        else:
-            print(f"Scholarly Synthesis error (Gemini): {e}")
-            
-        # RAG-first: return the pre-formatted authentic response, never an error string
-        if rag_display:
-            if include_thoughts: return rag_display, None
-            return rag_display
-            
+    if include_thoughts:
         return (
             "Assalamu Alaikum wa Rahmatullahi wa Barakatuh. 🤲\n\n"
-            "I apologize, but our scholarly synthesis system is currently over-taxed. "
-            "Please try again in a few moments, or ask a question that can be answered directly "
-            "from our local library of authentic texts."
-        )
+            "Local-only mode is active. Provide a local RAG context to answer."
+        ), None
+
+    return (
+        "Assalamu Alaikum wa Rahmatullahi wa Barakatuh. 🤲\n\n"
+        "Local-only mode is active. Provide a local RAG context to answer."
+    )
+
 
 @gemini_retry
-def generate_text(prompt: str, model: str = GEMINI_MODEL, include_thoughts: bool = False) -> Any:
+def generate_text(
+    prompt: str, model: str = GEMINI_MODEL, include_thoughts: bool = False
+) -> Any:
     """Generic text generation utility."""
-    try:
-        client = get_gemini_client()
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-        )
-        
-        text = response.text if response and response.text else ""
-        thoughts = None
-        
-        # Try to extract thoughts for Gemini 3
-        try:
-            if response and hasattr(response, 'candidates') and response.candidates:
-                for part in response.candidates[0].content.parts:
-                    if hasattr(part, 'thought_signature') and part.thought_signature:
-                         thoughts = part.text if hasattr(part, 'text') else str(part)
-        except:
-            pass
+    _ = (prompt, model)
+    if include_thoughts:
+        return "", None
+    return ""
 
-        if include_thoughts:
-            return text, thoughts
-        return text
-    except Exception as e:
-        print(f"Generic Generation error: {e}")
-        if include_thoughts:
-            return "", None
-        return ""
 
-def verify_retrieval_integrity(question: str, contexts: List[str]) -> List[int]:
+def verify_retrieval_integrity(
+    question: str,
+    contexts: List[str],
+) -> List[int]:
     """
     RAG v2 Authenticity Step: 
-    Audit retrieved context chunks and return indices of truly relevant/authentic ones.
+    Audit retrieved context chunks and return indices of relevant ones.
     """
     if not contexts:
         return []
@@ -327,8 +746,8 @@ def verify_retrieval_integrity(question: str, contexts: List[str]) -> List[int]:
         context_block += f"--- CHUNK {i} ---\n{c}\n\n"
 
     audit_prompt = f"""
-    You are an Islamic Scholarly Auditor. Your job is to verify if retrieved context chunks 
-    actually answer the user's question and are from authentic Islamic sources.
+    You are an Islamic Scholarly Auditor. Verify if retrieved context
+    chunks answer the user's question and are from authentic sources.
     
     User Question: {question}
     
@@ -336,8 +755,9 @@ def verify_retrieval_integrity(question: str, contexts: List[str]) -> List[int]:
     {context_block}
     
     INSTRUCTIONS:
-    1. For each chunk, decide if it is highly relevant and provides authentic Islamic guidance for the question.
-    2. Respond ONLY with a JSON list of indices (e.g., [0, 2]) for the chunks that should be kept.
+    1. For each chunk, decide if it is highly relevant to the question.
+    2. Respond ONLY with a JSON list of indices (e.g., [0, 2]) for the
+       chunks that should be kept.
     3. If none are relevant, respond with [].
     
     Response:
@@ -347,11 +767,10 @@ def verify_retrieval_integrity(question: str, contexts: List[str]) -> List[int]:
         res_text = generate_text(audit_prompt, model=GEMINI_MODEL)
         import json
         import re
-        # Take everything from start of first [ to end of last ]
         match = re.search(r'\[.*\]', res_text.strip(), re.DOTALL)
         if match:
             return json.loads(match.group())
-        return list(range(len(contexts))) # Fallback to all if parsing fails
+        return list(range(len(contexts)))
     except Exception as e:
         print(f"Retrieval Integrity Audit error: {e}")
-        return list(range(len(contexts))) # Fallback to all
+        return list(range(len(contexts)))

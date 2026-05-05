@@ -10,8 +10,13 @@ export default defineConfig(({ command }) => ({
   ].filter(Boolean),
   server: {
     port: 3001,
-    host: '127.0.0.1',
+    host: 'localhost',
     strictPort: true,
+    hmr: {
+      host: 'localhost',
+      port: 3001,
+      protocol: 'ws',
+    },
   },
   build: {
     chunkSizeWarningLimit: 2000,

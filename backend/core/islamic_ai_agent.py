@@ -28,9 +28,6 @@ class IslamicAIAgent:
             api_key: OpenAI API key (optional, can be set in .env file)
         """
       
-        # Agentscope global context will be initialized in setup_agent
-        import agentscope
-        
         self.model_params = None
         
         self.api_key = api_key or os.getenv('GOOGLE_API_KEY') or os.getenv('OPENAI_API_KEY')
@@ -45,9 +42,9 @@ class IslamicAIAgent:
         """Set up the AgentScope Islamic AI agent"""
         
         # Create toolkit with Islamic tools
-        from agentscope.agents import ReActAgent
-        from agentscope.service import ServiceToolkit as Toolkit
-        from agentscope.formatters import GeminiFormatter as GeminiChatFormatter
+        from agentscope.agent import ReActAgent
+        from agentscope.tool import Toolkit
+        from agentscope.formatter import GeminiChatFormatter
         self.toolkit = Toolkit()
         
         formatter = GeminiChatFormatter()
@@ -129,17 +126,18 @@ You are an Islamic AI Assistant from TheIslamInsights.com, designed to provide a
 Remember: You are here to serve Allah by helping His servants learn and practice Islam correctly."""
 
         # Create the Islamic AI agent
-        from agentscope.agents import ReActAgent, UserAgent
+        from agentscope.agent import ReActAgent, UserAgent
         
         # Initialize AgentScope via unified provider
         from backend.utils.llm_provider import get_agentscope_model, GEMINI_MODEL
-        model_config_name = get_agentscope_model()
+        model = get_agentscope_model()
         self.model_name = GEMINI_MODEL
             
         self.agent = ReActAgent(
             name="Noor",
-            model_config_name=model_config_name, 
-            service_toolkit=self.toolkit,
+            model=model, 
+            formatter=formatter,
+            toolkit=self.toolkit,
             sys_prompt=system_prompt,
         )
         

@@ -1,0 +1,243 @@
+{
+  "ingestion_date": "2026-05-04T19:41:13.854441",
+  "total_files": 38,
+  "total_documents": 51018,
+  "total_chunks": 67757,
+  "total_data_size_mb": 59.3953857421875,
+  "processing_time_seconds": 190.67645168304443,
+  "file_statistics": {
+    "99_names_of_allah_full.json": {
+      "type": "json",
+      "size_mb": 0.06357383728027344,
+      "documents": 99,
+      "status": "\u2705 loaded"
+    },
+    "99_names_of_prophet.json": {
+      "type": "json",
+      "size_mb": 0.015537261962890625,
+      "documents": 99,
+      "status": "\u2705 loaded"
+    },
+    "forty_hadith_nawawi.json": {
+      "type": "json",
+      "size_mb": 0.034340858459472656,
+      "documents": 42,
+      "status": "\u2705 loaded"
+    },
+    "hisn_al_muslim.json": {
+      "type": "json",
+      "size_mb": 0.27107715606689453,
+      "documents": 0,
+      "status": "\u2705 loaded"
+    },
+    "jami_at_tirmidhi_english.json": {
+      "type": "json",
+      "size_mb": 2.980038642883301,
+      "documents": 3913,
+      "status": "\u2705 loaded"
+    },
+    "muwatta_malik_english.json": {
+      "type": "json",
+      "size_mb": 1.5401458740234375,
+      "documents": 1815,
+      "status": "\u2705 loaded"
+    },
+    "quran_surah_metadata_114.json": {
+      "type": "json",
+      "size_mb": 0.025585174560546875,
+      "documents": 0,
+      "status": "\u2705 loaded"
+    },
+    "sahih_bukhari.json": {
+      "type": "json",
+      "size_mb": 12.160099983215332,
+      "documents": 7222,
+      "status": "\u2705 loaded"
+    },
+    "sahih_bukhari_english.json": {
+      "type": "json",
+      "size_mb": 4.941678047180176,
+      "documents": 7557,
+      "status": "\u2705 loaded"
+    },
+    "sahih_muslim.json": {
+      "type": "json",
+      "size_mb": 10.922940254211426,
+      "documents": 7240,
+      "status": "\u2705 loaded"
+    },
+    "sahih_muslim_english.json": {
+      "type": "json",
+      "size_mb": 4.097129821777344,
+      "documents": 7350,
+      "status": "\u2705 loaded"
+    },
+    "sunan_abu_dawud_english.json": {
+      "type": "json",
+      "size_mb": 4.111583709716797,
+      "documents": 5269,
+      "status": "\u2705 loaded"
+    },
+    "sunan_an_nasai_english.json": {
+      "type": "json",
+      "size_mb": 3.847048759460449,
+      "documents": 5676,
+      "status": "\u2705 loaded"
+    },
+    "sunan_ibn_majah_english.json": {
+      "type": "json",
+      "size_mb": 3.0909423828125,
+      "documents": 4340,
+      "status": "\u2705 loaded"
+    },
+    "40_hadith_nawawi_highlights.txt": {
+      "type": "txt",
+      "size_mb": 0.02993297576904297,
+      "documents": 43,
+      "status": "\u2705 loaded"
+    },
+    "akhlaq_and_character.txt": {
+      "type": "txt",
+      "size_mb": 0.0026826858520507812,
+      "documents": 11,
+      "status": "\u2705 loaded"
+    },
+    "aqeedah_essentials.txt": {
+      "type": "txt",
+      "size_mb": 0.010618209838867188,
+      "documents": 36,
+      "status": "\u2705 loaded"
+    },
+    "ar.muyassar.txt": {
+      "type": "txt",
+      "size_mb": 2.418848991394043,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "comprehensive_duas.txt": {
+      "type": "txt",
+      "size_mb": 0.011525154113769531,
+      "documents": 22,
+      "status": "\u2705 loaded"
+    },
+    "comprehensive_islamic_essentials.txt": {
+      "type": "txt",
+      "size_mb": 0.006165504455566406,
+      "documents": 22,
+      "status": "\u2705 loaded"
+    },
+    "en.ahmedraza.txt": {
+      "type": "txt",
+      "size_mb": 0.9135427474975586,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "fiqh_fundamentals.txt": {
+      "type": "txt",
+      "size_mb": 0.018675804138183594,
+      "documents": 69,
+      "status": "\u2705 loaded"
+    },
+    "heaven_and_hell.txt": {
+      "type": "txt",
+      "size_mb": 0.00250244140625,
+      "documents": 10,
+      "status": "\u2705 loaded"
+    },
+    "islamic_ethics_akhlaq.txt": {
+      "type": "txt",
+      "size_mb": 0.0070896148681640625,
+      "documents": 25,
+      "status": "\u2705 loaded"
+    },
+    "islamic_ground_truth_essentials.txt": {
+      "type": "txt",
+      "size_mb": 0.0038051605224609375,
+      "documents": 14,
+      "status": "\u2705 loaded"
+    },
+    "quran_pickthall.txt": {
+      "type": "txt",
+      "size_mb": 0.8248500823974609,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "quran_saheeh_international.txt": {
+      "type": "txt",
+      "size_mb": 0.8564462661743164,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "quran_shakir.txt": {
+      "type": "txt",
+      "size_mb": 0.8419532775878906,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "quran_yusuf_ali.txt": {
+      "type": "txt",
+      "size_mb": 0.8960065841674805,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "ramadan_hajj_guide.txt": {
+      "type": "txt",
+      "size_mb": 0.005995750427246094,
+      "documents": 23,
+      "status": "\u2705 loaded"
+    },
+    "seerah_prophet.txt": {
+      "type": "txt",
+      "size_mb": 0.015137672424316406,
+      "documents": 47,
+      "status": "\u2705 loaded"
+    },
+    "tafsir_ibn_kathir_highlights.txt": {
+      "type": "txt",
+      "size_mb": 0.007941246032714844,
+      "documents": 27,
+      "status": "\u2705 loaded"
+    },
+    "test_auto_ingest.txt": {
+      "type": "txt",
+      "size_mb": 0.0007610321044921875,
+      "documents": 6,
+      "status": "\u2705 loaded"
+    },
+    "test_watcher.txt": {
+      "type": "txt",
+      "size_mb": 0.0,
+      "documents": 0,
+      "status": "\u2705 loaded"
+    },
+    "ur.kanzuliman.txt": {
+      "type": "txt",
+      "size_mb": 1.1779918670654297,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "ur.maududi.txt": {
+      "type": "txt",
+      "size_mb": 1.4836931228637695,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "ur.qadri.txt": {
+      "type": "txt",
+      "size_mb": 1.7514572143554688,
+      "documents": 2,
+      "status": "\u2705 loaded"
+    },
+    "women_in_islam.txt": {
+      "type": "txt",
+      "size_mb": 0.0060405731201171875,
+      "documents": 23,
+      "status": "\u2705 loaded"
+    }
+  },
+  "chunk_configuration": {
+    "chunk_size": 1000,
+    "chunk_overlap": 200,
+    "model": "intfloat/multilingual-e5-large"
+  }
+}

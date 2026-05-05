@@ -136,14 +136,14 @@ const SidebarCard = ({ title, desc, icon: Icon, onClick }: { title: string, desc
   <motion.div
     whileHover={{ x: 8, backgroundColor: 'rgba(229, 192, 111, 0.04)' }}
     onClick={onClick}
-    className="flex items-start gap-7 p-7 mb-3 rounded-[2rem] cursor-pointer transition-all border border-transparent hover:border-gold-primary/10 group"
+    className="flex items-start gap-4 p-6 mb-3 rounded-[2rem] cursor-pointer transition-all border border-transparent hover:border-gold-primary/10 group overflow-hidden"
   >
-    <div className="w-16 h-16 shrink-0 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/20 group-hover:text-gold-primary group-hover:bg-gold-primary/10 transition-all shadow-inner">
-      <Icon size={28} />
+    <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/20 group-hover:text-gold-primary group-hover:bg-gold-primary/10 transition-all shadow-inner">
+      <Icon size={24} />
     </div>
-    <div className="flex flex-col space-y-2">
-      <h4 className="text-[17px] font-black text-white/90 group-hover:text-gold-primary transition-colors font-outfit">{title}</h4>
-      <p className="text-[12px] text-white/20 leading-relaxed font-medium line-clamp-2 group-hover:text-white/40 transition-colors uppercase tracking-wider">{desc}</p>
+    <div className="flex flex-col space-y-2 min-w-0 flex-1 overflow-hidden">
+      <h4 className="text-[15px] font-black text-white/90 group-hover:text-gold-primary transition-colors font-outfit text-wrap leading-snug">{title}</h4>
+      <p className="text-[11px] text-white/20 leading-tight font-medium line-clamp-2 group-hover:text-white/40 transition-colors uppercase tracking-wider text-wrap">{desc}</p>
     </div>
 
   </motion.div>
@@ -176,7 +176,7 @@ const ScholarlySkeleton = ({ height = 100 }: { height?: number }) => (
   </div>
 );
 
-const ScholarEvidence = ({ type, translation, reference, apiUrl }: { type: 'quran' | 'hadith', translation: string, reference: string, apiUrl: string }) => {
+const ScholarEvidence = ({ type, translation, reference, apiUrl, onSelectReference }: { type: 'quran' | 'hadith', translation: string, reference: string, apiUrl: string, onSelectReference: (ref: string) => void }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -248,7 +248,7 @@ const ScholarEvidence = ({ type, translation, reference, apiUrl }: { type: 'qura
           )}
             <div className="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-full border border-white/10 group/ref relative">
             <button 
-              onClick={() => setSelectedReference(reference)}
+              onClick={() => onSelectReference(reference)}
               className="text-[12px] font-black text-white/40 tracking-[0.2em] font-inter hover:text-gold-primary transition-colors flex items-center gap-2"
             >
               [{reference}]
@@ -543,15 +543,32 @@ const PlaceholderRotator = () => {
   );
 };
 
-const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') ? '' : 'http://localhost:5010' }) => {
+const IslamicAIAgent = ({ isWidget = false, apiUrl = 'http://localhost:5010' }) => {
   // Initialize messages from LocalStorage if available
   const [messages, setMessages] = useState<Message[]>(() => {
+    const normalizeText = (value: any): string => {
+      if (typeof value === 'string') return value;
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'object') {
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch {
+          return String(value);
+        }
+      }
+      return String(value);
+    };
+
     const saved = localStorage.getItem('noor_scholar_history');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-            return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
+            return parsed.map((m: any) => ({
+              ...m,
+              text: normalizeText(m?.text),
+              timestamp: new Date(m.timestamp)
+            }));
         }
       } catch (e) { console.error("History revival failed", e); }
     }
@@ -578,7 +595,11 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
   const [toast, setToast] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<number | null>(null);
   const [selectedReference, setSelectedReference] = useState<string | null>(null);
+  const [quranTranslationLang, setQuranTranslationLang] = useState<string>('en');
+  const [quranTranslationLanguages, setQuranTranslationLanguages] = useState<Array<{ code: string; edition_count: number }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [isSystemInitializing, setIsSystemInitializing] = useState(true);
+  const [initializationRetry, setInitializationRetry] = useState(0);
   
   // Real-time Islamic Data State
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -590,29 +611,70 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
   const [isAgentInitializing, setIsAgentInitializing] = useState(false);
   const [deepDiveMessage, setDeepDiveMessage] = useState<Message | null>(null);
   const [expandedThoughts, setExpandedThoughts] = useState<Record<number, boolean>>({});
+  const [expandedMessages, setExpandedMessages] = useState<Record<number, boolean>>({});
+  const [pageState, setPageState] = useState<Record<number, number>>({}); // blocks shown per message
   const [scholarlyStatus, setScholarlyStatus] = useState("Consulting Scholarly Consensus...");
   
   // Sanctuary & Atmosphere State
   const [isAmbiencePlaying, setIsAmbiencePlaying] = useState(false);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const [pulseIntensity, setPulseIntensity] = useState(0);
-  const [isDemoMode, setIsDemoMode] = useState(false); // Forced Local Mode for Pitch
+  const [isDemoMode, setIsDemoMode] = useState(true); // Forced Local Mode for Pitch
 
   // --- Resilience Engine Mapping ---
   // If the last message contains the "locally generated" marker, we show Local Resilient status
   const lastMsg = messages && messages.length > 0 ? messages[messages.length - 1] : null;
-  const isLastLocal = lastMsg?.text?.includes("locally generated locally"); 
+  const lastMsgText = typeof lastMsg?.text === 'string' ? lastMsg.text : '';
+  const isLastLocal = lastMsgText.includes("locally generated locally");
   const engineStatus = isDemoMode ? "Local Mode (Pitch)" : (isLastLocal ? "Local Resilient" : "Cloud Enhanced");
   const engineColor = isDemoMode ? "text-orange-400" : (isLastLocal ? "text-gold-primary" : "text-emerald-400");
   const engineBg = isDemoMode ? "bg-orange-400/10" : (isLastLocal ? "bg-gold-primary/10" : "bg-emerald-400/10");
   const engineBorder = isDemoMode ? "border-orange-400/20" : (isLastLocal ? "border-gold-primary/20" : "border-emerald-400/20");
+  const quranLangOptions = Array.from(new Set([
+    'auto',
+    'en',
+    'ur',
+    'ar',
+    ...quranTranslationLanguages.map(x => x.code)
+  ].filter(Boolean)));
 
   // Attachment & Voice State
+  const supportsAttachments = false;
+  const supportsVoice = false;
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/quran/translation-languages`, {
+          signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const langs = Array.isArray(data?.languages) ? data.languages : [];
+        const normalized = langs
+          .filter((x: any) => typeof x?.code === 'string')
+          .map((x: any) => ({
+            code: String(x.code).toLowerCase(),
+            edition_count: Number(x.edition_count || x.editionCount || 0)
+          }));
+        if (!cancelled) setQuranTranslationLanguages(normalized);
+        if (!cancelled && typeof data?.default === 'string' && data.default) {
+          setQuranTranslationLang(String(data.default).toLowerCase());
+        }
+      } catch {
+        if (!cancelled) setQuranTranslationLanguages([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiUrl]);
 
   const toggleAmbience = () => {
     if (!ambientAudioRef.current) {
@@ -685,15 +747,82 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
     }
   }, []);
 
+  useEffect(() => {
+    // System initialization check on mount
+    const initializeSystem = async () => {
+      let retries = 0;
+      const maxRetries = 5;
+      
+      const attemptConnection = async () => {
+        try {
+          setInitializationRetry(retries + 1);
+          
+          // Check backend health
+          const healthCheck = await fetch(`${apiUrl}/api/health`, { 
+            signal: AbortSignal.timeout(3000) 
+          }).catch(() => null);
+          
+          if (healthCheck && healthCheck.ok) {
+            // Backend is healthy - dismiss initialization
+            setIsSystemInitializing(false);
+            return true;
+          } else {
+            // Backend not responding, retry
+            retries++;
+            if (retries >= maxRetries) {
+              console.warn("Max retries reached. Backend may not be running.");
+              showToast(`❌ Cannot connect to backend at ${apiUrl}\n💻 Start: python3 backend/api/web_api.py`);
+              setIsSystemInitializing(false);
+              return false;
+            }
+            
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+            return attemptConnection();
+          }
+        } catch (error) {
+          console.error("System initialization check failed:", error);
+          retries++;
+          if (retries >= maxRetries) {
+            showToast(`❌ Failed to initialize: ${error}`);
+            setIsSystemInitializing(false);
+            return false;
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+          return attemptConnection();
+        }
+      };
+
+      await attemptConnection();
+    };
+
+    initializeSystem();
+  }, [apiUrl]);
+
   const fetchIslamicData = async (loc: { lat: number, lng: number }) => {
     setIsLoadingIslamicData(true);
     try {
+      // Verify backend is reachable
+      const healthCheck = await fetch(`${apiUrl}/api/health`, { 
+        signal: AbortSignal.timeout(3000) 
+      }).catch(() => null);
+      
+      if (!healthCheck) {
+        console.warn("Backend not reachable at", apiUrl);
+        showToast(`⚠️ Backend unavailable at ${apiUrl}. Please start: python3 backend/api/web_api.py`);
+        setIsLoadingIslamicData(false);
+        return;
+      }
+
       // Fetch Prayer Times
       const pRes = await fetch(`${apiUrl}/api/prayer-times`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng })
+        body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng }),
+        signal: AbortSignal.timeout(5000)
       });
+      
+      if (!pRes.ok) throw new Error(`Prayer times failed: ${pRes.status}`);
       const pData = await pRes.json();
       setPrayerTimes(pData.data || pData.prayer_times);
 
@@ -701,23 +830,44 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
       const qRes = await fetch(`${apiUrl}/api/qibla`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng })
+        body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng }),
+        signal: AbortSignal.timeout(5000)
       });
+      
+      if (!qRes.ok) throw new Error(`Qibla failed: ${qRes.status}`);
       const qData = await qRes.json();
       setQibla(qData);
 
       // Fetch Calendar Grid
-      const cRes = await fetch(`${apiUrl}/api/calendar`);
+      const cRes = await fetch(`${apiUrl}/api/calendar`, {
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (!cRes.ok) throw new Error(`Calendar failed: ${cRes.status}`);
       const cData = await cRes.json();
       setCalendarData(cData);
-    } catch (error) {
-      console.error("Failed to fetch Islamic data", error);
+    } catch (error: any) {
+      const errMsg = error?.message || error?.toString() || "Unknown error";
+      console.error("Failed to fetch Islamic data:", errMsg);
+      
+      if (errMsg.includes("timeout")) {
+        showToast("⏱️ Request timeout - Backend may be slow");
+      } else if (errMsg.includes("Failed to fetch")) {
+        showToast(`🔌 Cannot connect to backend at ${apiUrl}`);
+      } else {
+        showToast(`❌ Islamic data error: ${errMsg.substring(0, 40)}`);
+      }
     } finally {
       setIsLoadingIslamicData(false);
     }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!supportsAttachments) {
+      showToast("File upload is disabled in local-only mode ⚠️");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -740,6 +890,10 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
   };
 
   const toggleRecording = async () => {
+    if (!supportsVoice) {
+      showToast("Voice input is disabled in local-only mode ⚠️");
+      return;
+    }
     if (isRecording) {
       mediaRecorderRef.current?.stop();
       setIsRecording(false);
@@ -775,6 +929,10 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
   };
 
   const processSTT = async (base64Audio: string) => {
+    if (!supportsVoice) {
+      showToast("Voice input is disabled in local-only mode ⚠️");
+      return;
+    }
     setIsTyping(true);
     try {
       const response = await fetch(`${apiUrl}/api/stt`, {
@@ -782,6 +940,10 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ audio: base64Audio })
       });
+      if (response.status === 400) {
+        showToast("Voice input is disabled in local-only mode ⚠️");
+        return;
+      }
       const data = await response.json();
       if (data.transcription) {
         setInputMessage(data.transcription);
@@ -825,38 +987,65 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
         setSelectedFile(null);
       }
 
+      // Verify backend is reachable
+      const healthCheck = await fetch(`${apiUrl}/api/health`, {
+        signal: AbortSignal.timeout(2000)
+      }).catch(() => null);
+
+      if (!healthCheck) {
+        throw new Error(`BACKEND_NOT_REACHABLE: ${apiUrl}/api/health`);
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...body,
-          include_thoughts: true // ✨ Scholarly 2.0: Request reasoning
+          quran_translation_lang: quranTranslationLang,
+          include_thoughts: true,
+          use_synthesis: true  // Enable scholarly formatting
         }),
+        signal: AbortSignal.timeout(180000)
       });
 
       if (response.status === 503) {
         setIsAgentInitializing(true);
         const data = await response.json();
-        throw new Error(data.error || 'Initializing');
+        throw new Error(data.error || 'Service initializing');
       }
 
-      if (!response.ok) throw new Error('Service Unavailable');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(`API error ${response.status}: ${errData.error || response.statusText}`);
+      }
+
       const data = await response.json();
 
       const aiMsg: Message = { 
         id: Date.now() + 1, 
-        text: data.response, 
+        text: typeof data.response === 'string' ? data.response : JSON.stringify(data.response, null, 2), 
         sender: 'ai', 
         timestamp: new Date(),
-        thoughts: data.thoughts // ✨ Extra scholarly deliberation
+        thoughts: data.thoughts
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (error: any) {
-      console.error('Chat error:', error);
-      if (error.message.includes('initializing') || setIsAgentInitializing) {
-        showToast("Scholars are preparing the library... 📚");
+      const errMsg = error?.message || error?.toString() || "Unknown error";
+      console.error('Chat error:', errMsg);
+
+      if (errMsg.includes('BACKEND_NOT_REACHABLE')) {
+        showToast(`🔌 Backend not running at ${apiUrl}\n💻 Start: python3 backend/api/web_api.py`);
+      } else if (errMsg.includes('timeout')) {
+        showToast("⏱️ Request timeout - Backend may be processing");
+      } else if (errMsg.includes('Failed to fetch')) {
+        showToast(`❌ Network error - Cannot connect to ${apiUrl}`);
+      } else if (errMsg.includes('initializing')) {
+        showToast("📚 Scholars are preparing the library...");
+        setIsAgentInitializing(true);
+      } else if (errMsg.includes('API error')) {
+        showToast(`❌ Backend error: ${errMsg.substring(0, 50)}...`);
       } else {
-        showToast("Connection issue - Attempting to restore");
+        showToast(`❌ Error: ${errMsg.substring(0, 50)}...`);
       }
     } finally {
       setIsTyping(false);
@@ -898,33 +1087,32 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
     }
   };
 
-  const renderMessageContent = (msg: Message, forceFull = false) => {
+  const renderMessageContent = (msg: Message, forceFull = false, showLoadMore = true) => {
     const isAI = msg.sender === 'ai' || msg.sender === 'agent';
     const text = msg.text;
-    const isLong = text.length > 700;
-    const shouldTruncate = isLong && !forceFull;
 
     if (isAI) {
       // Enhanced regex to match broader scholarly formats like [The Holy Quran 17:78] or [Sahih Bukhari 123]
       const quranRegex = /\[(?:The\s+Holy\s+)?Quran\s*(?:\([^)]*\))?\s*(\d+:\d+)\]/i;
       const hadithRegex = /\[(?:Sahih\s+|Sunan\s+|Jami`?\s+|Muwatta\s+)?(Bukhari|Muslim|Hadith|Tirmidhi|Dawud|Nasa'i|Majah|Malik|Nawawi)\s*(?:\([^)]*\))?\s*(?:Hadith\s+)?#?(\d+)\]/i;
 
-      // Truncate logic if not in deep dive
-      const displayBlocks = shouldTruncate 
-        ? text.slice(0, 650) + "..." 
-        : text;
+      // Split into blocks for pagination
+      const allBlocks = text.split('\n\n').filter((b: string) => b.trim());
+      const isExpanded = expandedMessages[msg.id] || forceFull;
+      const blocksToShow = isExpanded ? allBlocks.length : Math.min(3, allBlocks.length);
+      const displayBlocks = allBlocks.slice(0, blocksToShow);
 
       return (
         <div className="space-y-12 relative">
-          {displayBlocks.split('\n\n').filter((block: string) => block.trim()).map((block: string, i: number) => {
+          {displayBlocks.map((block: string, i: number) => {
             // Case 1: Scholar Evidence (Quran/Hadith)
             if (quranRegex.test(block)) {
               const match = block.match(quranRegex);
-              return <ScholarEvidence key={i} type="quran" translation={block.replace(quranRegex, "").trim()} reference={`Quran ${match![1]}`} apiUrl={apiUrl} />;
+              return <ScholarEvidence key={i} type="quran" translation={block.replace(quranRegex, "").trim()} reference={`Quran ${match![1]}`} apiUrl={apiUrl} onSelectReference={setSelectedReference} />;
             }
             if (hadithRegex.test(block)) {
               const match = block.match(hadithRegex);
-              return <ScholarEvidence key={i} type="hadith" translation={block.replace(hadithRegex, "").trim()} reference={`${match![1]} ${match![2]}`} apiUrl={apiUrl} />;
+              return <ScholarEvidence key={i} type="hadith" translation={block.replace(hadithRegex, "").trim()} reference={`${match![1]} ${match![2]}`} apiUrl={apiUrl} onSelectReference={setSelectedReference} />;
             }
 
             // Case 2: Script-Aware Block Parsing
@@ -990,18 +1178,20 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
             );
           })}
 
-          {shouldTruncate && (
-            <div className="absolute bottom-[-100px] left-0 right-0 h-[250px] bg-gradient-to-t from-[#011412] via-[#011412]/80 to-transparent pointer-events-none z-10 flex items-end justify-center pb-20">
-               <motion.button
-                 whileHover={{ scale: 1.05, y: -5 }}
-                 whileTap={{ scale: 0.95 }}
-                 onClick={() => setDeepDiveMessage(msg)}
-                 className="pointer-events-auto bg-gold-primary/10 border-2 border-gold-primary/40 text-gold-primary rounded-full px-12 py-5 font-black uppercase tracking-[0.4em] text-[13px] backdrop-blur-3xl shadow-[0_40px_80px_rgba(0,0,0,0.5)] flex items-center gap-4 group"
-               >
-                 <span>📜 Unroll Full Scholarly Scroll</span>
-                 <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
-               </motion.button>
-            </div>
+          {/* Load More Button for Large Responses */}
+          {showLoadMore && !isExpanded && allBlocks.length > 3 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-12 flex justify-center"
+            >
+              <button
+                onClick={() => setExpandedMessages(prev => ({ ...prev, [msg.id]: true }))}
+                className="px-8 py-4 bg-gold-primary/20 hover:bg-gold-primary/30 border border-gold-primary/40 hover:border-gold-primary/60 rounded-full text-gold-primary font-black uppercase tracking-[0.4em] text-[11px] transition-all shadow-[0_0_20px_rgba(229,192,111,0.1)] hover:shadow-[0_0_30px_rgba(229,192,111,0.2)]"
+              >
+                📖 Load More Results ({allBlocks.length - blocksToShow} remaining)
+              </button>
+            </motion.div>
           )}
         </div>
       );
@@ -1027,32 +1217,45 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
       {/* Main Scholarly Station */}
       <div className="flex w-full h-[90vh] max-w-[1780px] bg-[#011412]/85 backdrop-blur-[80px] rounded-[4rem] border border-white/5 overflow-hidden shadow-[0_120px_240px_rgba(0,0,0,0.98)] transition-all relative z-10">
 
-        {/* Simplified Authored Sidebar */}
+        {/* Drawer Backdrop Overlay */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm rounded-[4rem] cursor-pointer"
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Drawer Menu Sidebar */}
         <motion.div
           animate={{
-            width: isSidebarOpen ? 480 : 0,
-            opacity: isSidebarOpen ? 1 : 0,
-            x: isSidebarOpen ? 0 : -20
+            x: isSidebarOpen ? 0 : -440,
+            opacity: isSidebarOpen ? 1 : 0
           }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col bg-black/20 border-r border-white/5 overflow-hidden relative"
+          className="absolute left-0 top-0 bottom-0 w-[400px] h-full bg-black/40 backdrop-blur-[40px] border-r border-white/5 overflow-hidden z-40 rounded-l-[4rem]"
         >
-          <div className="w-[480px] flex flex-col px-10 pt-16 pb-12 h-full">
-            <div className="flex items-center gap-6 mb-20 pl-4">
-              <NoorLogo size={42} />
-              <div className="flex flex-col">
-                <span className="text-[18px] font-black text-white tracking-[0.3em] font-outfit uppercase">Noor</span>
-                <span className="text-[10px] font-bold text-white/20 tracking-[0.6em] uppercase">Islamic AI Chatbot</span>
+          <div className="w-[400px] flex flex-col px-8 pt-16 pb-12 h-full">
+            <div className="flex items-center gap-4 mb-16 pl-2">
+              <NoorLogo size={38} />
+              <div className="flex flex-col min-w-0">
+                <span className="text-[16px] font-black text-white tracking-[0.3em] font-outfit uppercase truncate">Noor</span>
+                <span className="text-[9px] font-bold text-white/20 tracking-[0.6em] uppercase">Islamic AI</span>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto no-scrollbar pr-2">
-              <SidebarCard icon={Star} title="Islam & Moral Character" desc="WHAT DOES ISLAM TEACH ABOUT MORAL CHARACTER AND DAILY CONDUCT?" onClick={() => handleSendMessage("What does Islam teach about moral character and how should a Muslim conduct themselves in daily life?")} />
-              <SidebarCard icon={LayoutGrid} title="The Five Pillars" desc="EXPLAIN THE FIVE PILLARS AND WHY THEY ARE OBLIGATORY FOR EVERY MUSLIM" onClick={() => handleSendMessage("Explain the five pillars of Islam and why they are considered obligatory for every Muslim.")} />
-              <SidebarCard icon={Moon} title="Ramadan Essentials" desc="SIGNIFICANCE OF RAMADAN & FAST PROTOCOLS" onClick={() => handleSendMessage("Tell me about Ramadan significance")} />
-              <SidebarCard icon={Sun} title="Daily Dua & Dhikr" desc="PROPHETIC SUPPLICATIONS FOR HEART PURITY" onClick={() => handleSendMessage("What are the best daily duas?")} />
-              <SidebarCard icon={Book} title="Hadith Collections" desc="AUTHENTIC CHAINS FROM THE NINE BOOKS" onClick={() => handleSendMessage("How are Hadiths authenticated?")} />
-              <SidebarCard icon={Scroll} title="Quran Tafseer" desc="CLASSICAL EXEGESIS & SCHOLARLY INSIGHTS" onClick={() => handleSendMessage("Tell me about Quranic interpretation")} />
+              <SidebarCard icon={Star} title="Islam & Moral Character" desc="WHAT DOES ISLAM TEACH ABOUT MORAL CHARACTER AND DAILY CONDUCT?" onClick={() => { handleSendMessage("What does Islam teach about moral character and how should a Muslim conduct themselves in daily life?"); setIsSidebarOpen(false); }} />
+              <SidebarCard icon={LayoutGrid} title="The Five Pillars" desc="EXPLAIN THE FIVE PILLARS AND WHY THEY ARE OBLIGATORY FOR EVERY MUSLIM" onClick={() => { handleSendMessage("Explain the five pillars of Islam and why they are considered obligatory for every Muslim."); setIsSidebarOpen(false); }} />
+              <SidebarCard icon={Moon} title="Ramadan Essentials" desc="SIGNIFICANCE OF RAMADAN & FAST PROTOCOLS" onClick={() => { handleSendMessage("Tell me about Ramadan significance"); setIsSidebarOpen(false); }} />
+              <SidebarCard icon={Sun} title="Daily Dua & Dhikr" desc="PROPHETIC SUPPLICATIONS FOR HEART PURITY" onClick={() => { handleSendMessage("What are the best daily duas?"); setIsSidebarOpen(false); }} />
+              <SidebarCard icon={Book} title="Hadith Collections" desc="AUTHENTIC CHAINS FROM THE NINE BOOKS" onClick={() => { handleSendMessage("How are Hadiths authenticated?"); setIsSidebarOpen(false); }} />
+              <SidebarCard icon={Scroll} title="Quran Tafseer" desc="CLASSICAL EXEGESIS & SCHOLARLY INSIGHTS" onClick={() => { handleSendMessage("Tell me about Quranic interpretation"); setIsSidebarOpen(false); }} />
 
               {/* Real-time Islamic Widgets */}
               <div className="mt-12 space-y-6">
@@ -1119,7 +1322,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
                 {/* Hijri Vision Interactive Timeline Trigger */}
                 <motion.div 
                   whileHover={{ scale: 1.02 }}
-                  onClick={() => setIsTimelineOpen(true)}
+                  onClick={() => { setIsTimelineOpen(true); setIsSidebarOpen(false); }}
                   className="bg-gold-primary/10 border border-gold-primary/30 rounded-[2.5rem] p-8 mx-2 mt-4 cursor-pointer group relative overflow-hidden"
                 >
                   <div className="flex items-center justify-between">
@@ -1141,9 +1344,9 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
       </motion.div>
 
         {/* Chat Sanctuary Area */}
-        <div className="flex-1 flex flex-col relative bg-gradient-to-br from-white/[0.015] to-transparent">
+        <div className="flex-1 flex flex-col relative bg-gradient-to-br from-white/[0.015] via-white/[0.005] to-transparent w-full">
           {/* Elegant Top Header */}
-          <div className="h-32 flex items-center justify-between px-20 border-b border-white/5 bg-white/[0.005]">
+          <div className="h-28 flex items-center justify-between px-20 border-b border-white/5 bg-gradient-to-b from-white/[0.02] to-white/[0.005]">
             <div className="flex items-center gap-6">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1222,12 +1425,14 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
           </AnimatePresence>
 
           {/* Messages Sanctuary */}
-          <div className="flex-1 overflow-y-auto no-scrollbar px-24 py-16 space-y-2 pb-64" ref={chatContainerRef}>
+          <div className="flex-1 overflow-y-auto no-scrollbar px-20 py-12 space-y-3 pb-96" ref={chatContainerRef}>
             {messages.length === 1 && !isTyping && (
-              <SanctuaryGreeting onSuggestionClick={(q) => {
-                setInputMessage(q);
-                handleSendMessage(q);
-              }} />
+              <div className="flex-1 flex items-center justify-center">
+                <SanctuaryGreeting onSuggestionClick={(q) => {
+                  setInputMessage(q);
+                  handleSendMessage(q);
+                }} />
+              </div>
             )}
 
             <AnimatePresence mode="popLayout">
@@ -1244,10 +1449,10 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
                     onMouseEnter={() => setLastAction(msg.id)}
                     onMouseLeave={() => setLastAction(null)}
                     className={cn(
-                      "max-w-[85%] p-14 rounded-[3.5rem] border transition-all duration-1000 backdrop-blur-3xl shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative group/msg",
+                      "w-full max-w-4xl p-12 rounded-3xl border transition-all duration-500 backdrop-blur-2xl relative group/msg",
                       msg.sender === 'user'
-                        ? "bg-white/[0.04] border-white/10 text-white"
-                        : "bg-[#011412]/80 border-gold-primary/20 pb-20"
+                        ? "bg-gradient-to-br from-white/[0.08] to-white/[0.03] border-white/20 text-white ml-auto shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.3)]"
+                        : "bg-gradient-to-br from-[#011412]/80 to-[#0a1a17]/60 border-gold-primary/30 pb-16 shadow-[0_20px_50px_rgba(0,0,0,0.4)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.5)] hover:border-gold-primary/50"
                     )}>
                     {renderMessageContent(msg)}
 
@@ -1344,16 +1549,16 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
             <div ref={messagesEndRef} />
           </div>
           {/* Final Floating Input Pill with Suggestions */}
-          <div className="absolute bottom-5 left-0 right-0 px-32 pointer-events-none">
+          <div className="absolute bottom-6 left-0 right-0 px-12 md:px-24 lg:px-32 pointer-events-none">
             <div className="max-w-5xl mx-auto pointer-events-auto">
               {/* Selected File Indicator */}
               <AnimatePresence>
-                {selectedFile && (
+                {supportsAttachments && selectedFile && (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className="flex items-center gap-3 bg-gold-primary/20 border border-gold-primary/40 rounded-full px-6 py-3 mb-4 w-fit backdrop-blur-3xl"
+                    className="flex items-center gap-3 bg-gold-primary/20 border border-gold-primary/40 rounded-full px-6 py-3 mb-3 w-fit backdrop-blur-3xl"
                   >
                     <Paperclip size={14} className="text-gold-primary" />
                     <span className="text-[11px] font-black text-white/80 uppercase tracking-widest">{selectedFile.name}</span>
@@ -1369,7 +1574,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="flex gap-4 mb-8 overflow-x-auto no-scrollbar pb-2"
+                    className="flex gap-4 mb-6 overflow-x-auto no-scrollbar pb-2"
                   >
                     {SUGGESTIONS.map((item, idx) => (
                       <motion.button
@@ -1388,51 +1593,69 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
               </AnimatePresence>
 
               <div className={cn(
-                "flex items-center bg-[#011412]/98 backdrop-blur-[100px] rounded-[3rem] h-28 px-10 border shadow-[0_80px_160px_rgba(0,0,0,0.95)] gap-8 transition-all group/input",
-                isRecording ? "border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.3)]" : "border-white/10 hover:border-gold-primary/20"
+                "flex items-center bg-[#011412]/95 backdrop-blur-[80px] rounded-[2.5rem] h-20 px-8 border shadow-[0_60px_120px_rgba(0,0,0,0.8)] gap-6 transition-all group/input",
+                isRecording ? "border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.3)]" : "border-white/10 hover:border-gold-primary/30"
               )}>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                  className="hidden" 
-                  accept=".pdf,.txt,image/*" 
-                />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-4 text-white/10 hover:text-gold-primary transition-all group-hover/input:text-white/20"
-                >
-                  <Paperclip size={26} />
-                </button>
+                {supportsAttachments && (
+                  <>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileUpload} 
+                      className="hidden" 
+                      accept=".pdf,.txt,image/*" 
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-3 text-white/20 hover:text-gold-primary transition-all group-hover/input:text-white/40"
+                    >
+                      <Paperclip size={22} />
+                    </button>
+                  </>
+                )}
                 <div className="relative flex-1 flex items-center h-full">
                   {!inputMessage && <PlaceholderRotator />}
                   <input
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
-                    className="w-full bg-transparent border-none outline-none text-2xl text-white font-medium z-10"
+                    className="w-full bg-transparent border-none outline-none text-xl text-white font-medium z-10"
                     placeholder={isRecording ? "Listening..." : ""}
                   />
                 </div>
-                <div className="flex items-center gap-6 border-l border-white/5 pl-8 h-14">
-                  <button 
-                    onClick={toggleRecording}
-                    className={cn(
-                      "p-4 transition-all",
-                      isRecording ? "text-red-500 animate-pulse" : "text-white/10 hover:text-gold-primary group-hover/input:text-white/20"
-                    )}
+                <div className="flex items-center gap-4 border-l border-white/5 pl-6 h-12">
+                  <select
+                    value={quranTranslationLang}
+                    onChange={(e) => setQuranTranslationLang(e.target.value)}
+                    className="bg-transparent text-white/30 text-[10px] font-black uppercase tracking-[0.25em] outline-none"
+                    aria-label="Quran translation language"
                   >
-                    <Mic size={26} />
-                  </button>
+                    {quranLangOptions.map((code) => (
+                      <option key={code} value={code} className="bg-[#011412] text-white">
+                        {code.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                  {supportsVoice && (
+                    <button 
+                      onClick={toggleRecording}
+                      className={cn(
+                        "p-2 transition-all",
+                        isRecording ? "text-red-500 animate-pulse" : "text-white/20 hover:text-gold-primary group-hover/input:text-white/40"
+                      )}
+                    >
+                      <Mic size={20} />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleSendMessage()}
                     disabled={(!inputMessage.trim() && !selectedFile) || isTyping}
                     className={cn(
-                      "w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl",
-                      (inputMessage.trim() || selectedFile) ? "bg-gold-primary text-black hover:scale-110 active:scale-95" : "bg-white/5 text-white/5"
+                      "w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg",
+                      (inputMessage.trim() || selectedFile) ? "bg-gold-primary text-black hover:scale-105 active:scale-95" : "bg-white/5 text-white/5"
                     )}
                   >
-                    <Send size={24} fill={(inputMessage.trim() || selectedFile) ? "currentColor" : "none"} />
+                    <Send size={20} fill={(inputMessage.trim() || selectedFile) ? "currentColor" : "none"} />
                   </button>
                 </div>
               </div>
@@ -1456,6 +1679,124 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = (typeof process !== 'undefi
           </div>
         </div>
       </div>
+
+      {/* System Initializing Modal */}
+      <AnimatePresence>
+        {isSystemInitializing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-12 bg-black/80 backdrop-blur-3xl"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              className="flex flex-col items-center justify-center space-y-12 max-w-2xl"
+            >
+              {/* Animated Loading Circle */}
+              <div className="relative w-32 h-32">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 rounded-full border-4 border-transparent border-t-gold-primary border-r-gold-primary shadow-[0_0_30px_rgba(229,192,111,0.4)]"
+                />
+                <motion.div
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-4 rounded-full border-2 border-transparent border-b-gold-primary/50 border-l-gold-primary/50"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-gold-primary/20 border border-gold-primary/40" />
+                </div>
+              </div>
+
+              {/* Text Content */}
+              <div className="text-center space-y-6">
+                <div className="space-y-3">
+                  <h2 className="text-4xl font-black text-white tracking-tight font-outfit uppercase">
+                    ⏳ System Initializing
+                  </h2>
+                  <p className="text-gold-primary text-lg font-bold tracking-wide">
+                    Loading scholarly resources...
+                  </p>
+                </div>
+
+                {/* Status Messages */}
+                <div className="space-y-3 mt-8">
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex items-center justify-center gap-3 text-white/60"
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="w-2 h-2 rounded-full bg-gold-primary"
+                    />
+                    <span className="text-sm font-medium">Initializing knowledge base...</span>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex items-center justify-center gap-3 text-white/60"
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                      className="w-2 h-2 rounded-full bg-gold-primary"
+                    />
+                    <span className="text-sm font-medium">
+                      Connecting to backend services... 
+                      {initializationRetry > 0 && <span className="ml-2 text-gold-primary font-black">(Attempt {initializationRetry}/5)</span>}
+                    </span>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="flex items-center justify-center gap-3 text-white/60"
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                      className="w-2 h-2 rounded-full bg-gold-primary"
+                    />
+                    <span className="text-sm font-medium">Preparing sacred resources...</span>
+                  </motion.div>
+                </div>
+
+                <p className="text-white/40 text-xs font-bold uppercase tracking-[0.3em] mt-8">
+                  This will only happen once per session
+                </p>
+              </div>
+
+              {/* Bottom Info */}
+              <div className="w-full max-w-md pt-8 border-t border-white/10 mt-8">
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="flex items-center justify-center gap-2 text-white/30 text-xs font-medium">
+                    <span className="w-2 h-2 rounded-full bg-gold-primary/40 animate-pulse" />
+                    <span>Noor is preparing to assist you</span>
+                    <span className="w-2 h-2 rounded-full bg-gold-primary/40 animate-pulse" />
+                  </div>
+                  <p className="text-white/20 text-[10px] font-bold uppercase tracking-[0.2em] text-center">
+                    Backend: {apiUrl}
+                  </p>
+                  {initializationRetry > 3 && (
+                    <p className="text-orange-400/80 text-[9px] font-black uppercase tracking-[0.2em] text-center mt-2">
+                      ⚠️ Still connecting... Make sure backend is running
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hijri Vision Modal */}
       <AnimatePresence>

@@ -1,0 +1,306 @@
+{
+  "metadata": {
+    "indexed_at": "2026-05-01T16:34:49.188485",
+    "root_path": "/Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/scripts/..",
+    "total_modules": 72,
+    "total_classes": 0,
+    "total_functions": 0,
+    "language_breakdown": {
+      "python": 72
+    }
+  },
+  "modules": {
+    "backend/__init__.py": {
+      "path": "backend/__init__.py",
+      "filename": "__init__.py"
+    },
+    "backend/tools/dynamic_islamic_knowledge.py": {
+      "path": "backend/tools/dynamic_islamic_knowledge.py",
+      "filename": "dynamic_islamic_knowledge.py"
+    },
+    "backend/tools/islamic_tools.py": {
+      "path": "backend/tools/islamic_tools.py",
+      "filename": "islamic_tools.py"
+    },
+    "backend/tools/audio_tools.py": {
+      "path": "backend/tools/audio_tools.py",
+      "filename": "audio_tools.py"
+    },
+    "backend/tools/enhanced_islamic_tools.py": {
+      "path": "backend/tools/enhanced_islamic_tools.py",
+      "filename": "enhanced_islamic_tools.py"
+    },
+    "backend/tools/__init__.py": {
+      "path": "backend/tools/__init__.py",
+      "filename": "__init__.py"
+    },
+    "backend/core/multi_agent_islamic_system.py": {
+      "path": "backend/core/multi_agent_islamic_system.py",
+      "filename": "multi_agent_islamic_system.py"
+    },
+    "backend/core/__init__.py": {
+      "path": "backend/core/__init__.py",
+      "filename": "__init__.py"
+    },
+    "backend/core/gemini_islamic_agent.py": {
+      "path": "backend/core/gemini_islamic_agent.py",
+      "filename": "gemini_islamic_agent.py"
+    },
+    "backend/core/islamic_ai_agent.py": {
+      "path": "backend/core/islamic_ai_agent.py",
+      "filename": "islamic_ai_agent.py"
+    },
+    "backend/config/__init__.py": {
+      "path": "backend/config/__init__.py",
+      "filename": "__init__.py"
+    },
+    "backend/config/islamic_config.py": {
+      "path": "backend/config/islamic_config.py",
+      "filename": "islamic_config.py"
+    },
+    "backend/utils/agentscope_setup.py": {
+      "path": "backend/utils/agentscope_setup.py",
+      "filename": "agentscope_setup.py"
+    },
+    "backend/utils/__init__.py": {
+      "path": "backend/utils/__init__.py",
+      "filename": "__init__.py"
+    },
+    "backend/utils/llm_provider.py": {
+      "path": "backend/utils/llm_provider.py",
+      "filename": "llm_provider.py"
+    },
+    "backend/scratch/test_resilience.py": {
+      "path": "backend/scratch/test_resilience.py",
+      "filename": "test_resilience.py"
+    },
+    "backend/scratch/rebuild_bm25.py": {
+      "path": "backend/scratch/rebuild_bm25.py",
+      "filename": "rebuild_bm25.py"
+    },
+    "backend/scratch/test_models.py": {
+      "path": "backend/scratch/test_models.py",
+      "filename": "test_models.py"
+    },
+    "backend/knowledge/local_knowledge_tools.py": {
+      "path": "backend/knowledge/local_knowledge_tools.py",
+      "filename": "local_knowledge_tools.py"
+    },
+    "backend/knowledge/authentic_data_downloader.py": {
+      "path": "backend/knowledge/authentic_data_downloader.py",
+      "filename": "authentic_data_downloader.py"
+    },
+    "backend/knowledge/knowledge_expansion.py": {
+      "path": "backend/knowledge/knowledge_expansion.py",
+      "filename": "knowledge_expansion.py"
+    },
+    "backend/knowledge/auto_ingest_watcher.py": {
+      "path": "backend/knowledge/auto_ingest_watcher.py",
+      "filename": "auto_ingest_watcher.py"
+    },
+    "backend/knowledge/query_expansion.py": {
+      "path": "backend/knowledge/query_expansion.py",
+      "filename": "query_expansion.py"
+    },
+    "backend/knowledge/authentic_data_downloader_v2.py": {
+      "path": "backend/knowledge/authentic_data_downloader_v2.py",
+      "filename": "authentic_data_downloader_v2.py"
+    },
+    "backend/knowledge/ingest_data.py": {
+      "path": "backend/knowledge/ingest_data.py",
+      "filename": "ingest_data.py"
+    },
+    "backend/knowledge/authentic_data_downloader_final.py": {
+      "path": "backend/knowledge/authentic_data_downloader_final.py",
+      "filename": "authentic_data_downloader_final.py"
+    },
+    "backend/knowledge/ingestion/fast_ground_truth_ingest.py": {
+      "path": "backend/knowledge/ingestion/fast_ground_truth_ingest.py",
+      "filename": "fast_ground_truth_ingest.py"
+    },
+    "backend/knowledge/ingestion/download_expanded_data.py": {
+      "path": "backend/knowledge/ingestion/download_expanded_data.py",
+      "filename": "download_expanded_data.py"
+    },
+    "backend/api/server_lite.py": {
+      "path": "backend/api/server_lite.py",
+      "filename": "server_lite.py"
+    },
+    "backend/api/web_api.py": {
+      "path": "backend/api/web_api.py",
+      "filename": "web_api.py"
+    },
+    "backend/api/__init__.py": {
+      "path": "backend/api/__init__.py",
+      "filename": "__init__.py"
+    },
+    "backend/api/simple_api.py": {
+      "path": "backend/api/simple_api.py",
+      "filename": "simple_api.py"
+    },
+    "backend/api/run_fast.py": {
+      "path": "backend/api/run_fast.py",
+      "filename": "run_fast.py"
+    },
+    "backend/api/indexing_routes.py": {
+      "path": "backend/api/indexing_routes.py",
+      "filename": "indexing_routes.py"
+    },
+    "backend/indexing/ai_coding_assistant.py": {
+      "path": "backend/indexing/ai_coding_assistant.py",
+      "filename": "ai_coding_assistant.py"
+    },
+    "backend/indexing/__init__.py": {
+      "path": "backend/indexing/__init__.py",
+      "filename": "__init__.py"
+    },
+    "backend/indexing/graphify.py": {
+      "path": "backend/indexing/graphify.py",
+      "filename": "graphify.py"
+    },
+    "backend/indexing/project_indexer.py": {
+      "path": "backend/indexing/project_indexer.py",
+      "filename": "project_indexer.py"
+    },
+    "backend/indexing/storage.py": {
+      "path": "backend/indexing/storage.py",
+      "filename": "storage.py"
+    },
+    "scratch/test_hijri_synthesis.py": {
+      "path": "scratch/test_hijri_synthesis.py",
+      "filename": "test_hijri_synthesis.py"
+    },
+    "scripts/test_gemini_agentscope.py": {
+      "path": "scripts/test_gemini_agentscope.py",
+      "filename": "test_gemini_agentscope.py"
+    },
+    "scripts/test_sdk_minimal.py": {
+      "path": "scripts/test_sdk_minimal.py",
+      "filename": "test_sdk_minimal.py"
+    },
+    "scripts/list_gemini_models.py": {
+      "path": "scripts/list_gemini_models.py",
+      "filename": "list_gemini_models.py"
+    },
+    "scripts/test_raw_sdk.py": {
+      "path": "scripts/test_raw_sdk.py",
+      "filename": "test_raw_sdk.py"
+    },
+    "scripts/verify_indexing.py": {
+      "path": "scripts/verify_indexing.py",
+      "filename": "verify_indexing.py"
+    },
+    "scripts/debug_imports.py": {
+      "path": "scripts/debug_imports.py",
+      "filename": "debug_imports.py"
+    },
+    "scripts/verify_backend_fix.py": {
+      "path": "scripts/verify_backend_fix.py",
+      "filename": "verify_backend_fix.py"
+    },
+    "scripts/test_agentscope.py": {
+      "path": "scripts/test_agentscope.py",
+      "filename": "test_agentscope.py"
+    },
+    "scripts/verify_rag.py": {
+      "path": "scripts/verify_rag.py",
+      "filename": "verify_rag.py"
+    },
+    "scripts/test_consolidated.py": {
+      "path": "scripts/test_consolidated.py",
+      "filename": "test_consolidated.py"
+    },
+    "scripts/test_venv.py": {
+      "path": "scripts/test_venv.py",
+      "filename": "test_venv.py"
+    },
+    "scripts/fix_ui.py": {
+      "path": "scripts/fix_ui.py",
+      "filename": "fix_ui.py"
+    },
+    "scripts/list_models_v2.py": {
+      "path": "scripts/list_models_v2.py",
+      "filename": "list_models_v2.py"
+    },
+    "scripts/test_gemini_cfg.py": {
+      "path": "scripts/test_gemini_cfg.py",
+      "filename": "test_gemini_cfg.py"
+    },
+    "scripts/test_agentscope_v3.py": {
+      "path": "scripts/test_agentscope_v3.py",
+      "filename": "test_agentscope_v3.py"
+    },
+    "scripts/test_accuracy.py": {
+      "path": "scripts/test_accuracy.py",
+      "filename": "test_accuracy.py"
+    },
+    "scripts/test_authenticity.py": {
+      "path": "scripts/test_authenticity.py",
+      "filename": "test_authenticity.py"
+    },
+    "scripts/diag_init.py": {
+      "path": "scripts/diag_init.py",
+      "filename": "diag_init.py"
+    },
+    "scripts/test_agentscope_v2.py": {
+      "path": "scripts/test_agentscope_v2.py",
+      "filename": "test_agentscope_v2.py"
+    },
+    "scripts/verify_authenticity.py": {
+      "path": "scripts/verify_authenticity.py",
+      "filename": "verify_authenticity.py"
+    },
+    "scripts/verify_multimodal.py": {
+      "path": "scripts/verify_multimodal.py",
+      "filename": "verify_multimodal.py"
+    },
+    "scripts/graphify_demo.py": {
+      "path": "scripts/graphify_demo.py",
+      "filename": "graphify_demo.py"
+    },
+    "scripts/test_all_features.py": {
+      "path": "scripts/test_all_features.py",
+      "filename": "test_all_features.py"
+    },
+    "scripts/fix_nawawi_highlights.py": {
+      "path": "scripts/fix_nawawi_highlights.py",
+      "filename": "fix_nawawi_highlights.py"
+    },
+    "scripts/enhanced_islamic_tools.py_fix.py": {
+      "path": "scripts/enhanced_islamic_tools.py_fix.py",
+      "filename": "enhanced_islamic_tools.py_fix.py"
+    },
+    "scripts/test_flask.py": {
+      "path": "scripts/test_flask.py",
+      "filename": "test_flask.py"
+    },
+    "scripts/debug_core.py": {
+      "path": "scripts/debug_core.py",
+      "filename": "debug_core.py"
+    },
+    "scripts/test_init.py": {
+      "path": "scripts/test_init.py",
+      "filename": "test_init.py"
+    },
+    "scripts/test_dynamic_knowledge.py": {
+      "path": "scripts/test_dynamic_knowledge.py",
+      "filename": "test_dynamic_knowledge.py"
+    },
+    "scripts/list_models_detailed.py": {
+      "path": "scripts/list_models_detailed.py",
+      "filename": "list_models_detailed.py"
+    },
+    "scripts/graphify_cli.py": {
+      "path": "scripts/graphify_cli.py",
+      "filename": "graphify_cli.py"
+    },
+    "api/index.py": {
+      "path": "api/index.py",
+      "filename": "index.py"
+    }
+  },
+  "statistics": {
+    "total_lines_of_code": 9899
+  },
+  "dependency_graph": {}
+}

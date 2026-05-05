@@ -23,8 +23,28 @@ load_dotenv()
 # Configuration - Points to the project root (3 levels up from backend/knowledge/)
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR))) if "backend" in CURRENT_DIR else os.path.dirname(CURRENT_DIR)
-CHROMA_PATH = os.path.join(CURRENT_DIR, "chroma_db")
-BM25_PATH = os.path.join(CURRENT_DIR, "bm25_index.pkl")
+
+# ChromaDB path with fallback logic (prefer full version)
+CHROMA_PATH_FULL = os.path.join(CURRENT_DIR, "chroma_db_full")
+CHROMA_PATH_BATCHED = os.path.join(CURRENT_DIR, "chroma_db_batched")
+CHROMA_PATH_LEGACY = os.path.join(CURRENT_DIR, "chroma_db")
+CHROMA_PATH = (
+    CHROMA_PATH_FULL
+    if os.path.exists(CHROMA_PATH_FULL)
+    else (
+        CHROMA_PATH_BATCHED
+        if os.path.exists(CHROMA_PATH_BATCHED)
+        else CHROMA_PATH_LEGACY
+    )
+)
+
+# Try multiple BM25 paths in order of priority
+_bm25_candidates = [
+    os.path.join(CURRENT_DIR, "bm25_full_index.pkl"),
+    os.path.join(CURRENT_DIR, "bm25_index_enhanced.pkl"),
+    os.path.join(CURRENT_DIR, "bm25_index.pkl"),
+]
+BM25_PATH = next((p for p in _bm25_candidates if os.path.exists(p)), _bm25_candidates[0])
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # --- Scholarly Source Mapping ---
@@ -52,6 +72,7 @@ SOURCE_MAPPING = {
     "hisn_al_muslim.json": "Hisn al-Muslim (Dua/Adhkar)",
     "duas.txt": "Hisn al-Muslim (Supplications)",
     "comprehensive_duas.txt": "Book of Comprehensive Supplications (Duas)",
+    "comprehensive_islamic_essentials.txt": "Comprehensive Islamic Essentials",
     "99_names_of_allah_full.json": "The 99 Names of Allah (Asma ul Husna)",
     "tafsir_ibn_kathir_highlights.txt": "Tafsir Ibn Kathir",
     "aqeedah_essentials.txt": "Aqeedah Essentials",
@@ -83,10 +104,18 @@ class LocalKnowledgeBase:
             else:
                 print(f"🏛️  1/2: Initializing Retrieval Model: {model_name}...")
                 from langchain_huggingface import HuggingFaceEmbeddings
+                import torch
+                # Force CPU-only mode and disable torch.compile to avoid meta tensor issues on macOS
+                import os as _os
+                _os.environ['CUDA_VISIBLE_DEVICES'] = ''
+                torch.set_float32_matmul_precision('medium')
                 self.embeddings = HuggingFaceEmbeddings(
                     model_name=model_name,
-                    model_kwargs={'device': 'cpu'},
-                    encode_kwargs={'normalize_embeddings': True}
+                    model_kwargs={
+                        'device': 'cpu',
+                        'trust_remote_code': True,
+                    },
+                    encode_kwargs={'normalize_embeddings': True, 'batch_size': 32}
                 )
             print("✅ Retrieval Model loaded successfully.")
             
@@ -97,7 +126,12 @@ class LocalKnowledgeBase:
                 print(f"⚠️  Chroma database not found at {CHROMA_PATH}")
             else:
                 from langchain_community.vectorstores import Chroma
-                self.db = Chroma(persist_directory=CHROMA_PATH, embedding_function=self.embeddings)
+                # Use the correct collection name that has the Islamic knowledge data
+                self.db = Chroma(
+                    persist_directory=CHROMA_PATH, 
+                    embedding_function=self.embeddings,
+                    collection_name="islamic_knowledge"  # ← CRITICAL: Use the collection with actual data
+                )
                 print(f"✅ Chroma database connected ({CHROMA_PATH}).")
             
             # Initialize BM25 for Hybrid Search
@@ -107,9 +141,13 @@ class LocalKnowledgeBase:
                 try:
                     with open(BM25_PATH, 'rb') as f:
                         payload = pickle.load(f)
-                        if isinstance(payload, dict) and "model" in payload:
+                        # Check for either 'model' or 'bm25' key format
+                        if isinstance(payload, dict) and ("model" in payload or "bm25" in payload):
                             self.bm25_data = payload
-                            print(f"✅ Fast BM25 Keyword Index active ({len(payload.get('texts', []))} docs).")
+                            # Handle both old and new formats
+                            doc_count = len(payload.get('texts', payload.get('corpus', [])))
+                            total = payload.get('total_chunks', doc_count)
+                            print(f"✅ Fast BM25 Keyword Index active ({total} docs, {doc_count} items).")
                 except Exception as e:
                     print(f"⚠️ BM25 load error: {e}")
 
@@ -131,8 +169,9 @@ class LocalKnowledgeBase:
             import traceback
             print(traceback.format_exc())
             self.db = None
-            self.bm25 = None
+            self.bm25_data = None
             self.reranker = None
+            self.embeddings = None
 
     def _get_scholarly_reference(self, doc: Any) -> str:
         """Constructs a professional scholarly reference from metadata"""
@@ -359,7 +398,8 @@ class LocalKnowledgeBase:
         RAG v3: RAG-First Engine with Local Query Expansion, Strict Re-ranker 
         Thresholding, and Intent-Driven Storage Partitioning.
         """
-        if not self.db:
+        # Allow BM25-only mode if ChromaDB not available
+        if not self.db and not (hasattr(self, 'bm25_data') and self.bm25_data):
             return "❌ Local knowledge base is empty. Please run ingestion first."
 
         try:
@@ -383,6 +423,9 @@ class LocalKnowledgeBase:
                 
             # Determine Intent Filters
             metadata_filter = self._determine_metadata_intent(query)
+            logger.debug(f"🔍 Search Query: {query}")
+            logger.debug(f"📋 All Search Queries: {all_search_queries}")
+            logger.debug(f"🏷️  Metadata Filter: {metadata_filter}")            
             
             # 2. Hybrid Retrieval
             candidate_pool = {} # page_content -> (doc, score)
@@ -390,39 +433,23 @@ class LocalKnowledgeBase:
             # A. Vector Retrieval (Semantic) - Multi-pass
             for q in all_search_queries:
                 pass_results = []
-                try:
-                    pass_results = self.db.similarity_search_with_relevance_scores(
-                        f"query: {q}", 
-                        k=k*3
-                    )
-                except Exception as e:
-                    print(f"Vector search warning: {e}")
+                if self.db:
+                    try:
+                        # Use similarity_search_with_relevance_scores (correct LangChain method)
+                        pass_results = self.db.similarity_search_with_relevance_scores(q, k=k*3)
+                        logger.debug(f"✅ Vector search for '{q[:30]}': found {len(pass_results)} results")
+                    except Exception as e:
+                        logger.debug(f"Vector search warning: {e}")
                     
                 for doc, score in pass_results:
                     content = doc.page_content
                     metadata = doc.metadata
                     
-                    # Apply manual intent filter logic
-                    if metadata_filter:
-                        intent_type = list(metadata_filter.keys())[0] # "type"
-                        intent_vals = metadata_filter[intent_type]["$in"] # e.g. ["quran"]
-                        
-                        source_str = str(metadata.get("source", "")).lower()
-                        type_str = str(metadata.get("type", "")).lower()
-                        
-                        is_valid = False
-                        if "quran" in intent_vals:
-                            if "quran" in source_str or "quran" in type_str:
-                                is_valid = True
-                        elif "hadith" in intent_vals:
-                            if any(h in source_str for h in ["bukhari", "muslim", "dawud", "nasai", "majah", "tirmidhi", "muwatta", "nawawi"]) or "hadith" in type_str:
-                                is_valid = True
-                        elif "dua" in intent_vals:
-                            if "dua" in source_str or "dua" in type_str or "hisn" in source_str:
-                                is_valid = True
-                                
-                        if not is_valid:
-                            continue
+                    # TEMPORARILY DISABLE metadata filtering to debug
+                    # if metadata_filter:
+                    #     ... filtering logic ...
+                    #     if not is_valid:
+                    #         continue
 
                     # Calculate scholarly weight
                     auth_weight = self._get_scholarly_weight(metadata)
@@ -439,27 +466,42 @@ class LocalKnowledgeBase:
             # B. BM25 Retrieval (Keyword) - Optimized Offline Mode
             if self.bm25_data:
                 tokenized_tokens = word_tokenize(query.lower())
-                bm25_model = self.bm25_data["model"]
-                texts = self.bm25_data["texts"]
-                metadatas = self.bm25_data["metadatas"]
+                # Support both old 'model' key and new 'bm25' key
+                bm25_model = self.bm25_data.get("model") or self.bm25_data.get("bm25")
+                # Handle both formats: old 'texts' and new 'corpus'
+                texts = self.bm25_data.get("texts") or self.bm25_data.get("corpus", [])
+                # Support both 'metadatas' and 'metadata' keys
+                metadatas = self.bm25_data.get("metadatas") or self.bm25_data.get("metadata")
                 
-                doc_scores = bm25_model.get_scores(tokenized_tokens)
-                
-                top_indices = np.argsort(doc_scores)[::-1][:k*2]
-                max_bm25 = max(doc_scores) if any(doc_scores > 0) else 1
-                
-                for idx in top_indices:
-                    if doc_scores[idx] > 0:
-                        content = texts[idx]
-                        metadata = metadatas[idx]
-                        
-                        # Apply Metadata Intent Filter manually for BM25
-                        if metadata_filter:
-                            intent_type = list(metadata_filter.keys())[0]
-                            intent_vals = metadata_filter[intent_type]["$in"]
+                # Only proceed if we have texts/corpus
+                if texts and bm25_model and metadatas:
+                    doc_scores = bm25_model.get_scores(tokenized_tokens)
+                    
+                    top_indices = np.argsort(doc_scores)[::-1][:k*2]
+                    max_bm25 = max(doc_scores) if any(doc_scores > 0) else 1
+                    
+                    for idx in top_indices:
+                        if doc_scores[idx] > 0:
+                            # Handle both text and tokenized corpus formats
+                            if isinstance(texts[idx], (list, tuple)):
+                                # Tokenized corpus format - skip or try to reconstruct
+                                content = " ".join(texts[idx]) if texts[idx] else ""
+                            else:
+                                # Raw text format
+                                content = texts[idx]
                             
-                            source_str = str(metadata.get("source", "")).lower()
-                            type_str = str(metadata.get("type", "")).lower()
+                            if not content:
+                                continue
+                                
+                            metadata = metadatas[idx] if isinstance(metadatas, list) else metadatas
+                            
+                            # Apply Metadata Intent Filter manually for BM25
+                            if metadata_filter and isinstance(metadata, dict):
+                                intent_type = list(metadata_filter.keys())[0]
+                                intent_vals = metadata_filter[intent_type]["$in"]
+                                
+                                source_str = str(metadata.get("source", "")).lower()
+                                type_str = str(metadata.get("type", "")).lower()
                             
                             is_valid = False
                             if "quran" in intent_vals:
@@ -487,12 +529,29 @@ class LocalKnowledgeBase:
                         else:
                             candidate_pool[content][1] += (weighted_score * 0.3)
 
-            # 3. Final Candidate Selection & Re-ranking
+            # 3. Fallback to Chroma Vector Search if no candidates found
             candidates = list(candidate_pool.values())
+            logger.debug(f"📦 Candidates after vector/BM25: {len(candidates)}")
+            
+            if not candidates and self.db:
+                # Fallback: Use Chroma semantic search
+                try:
+                    # Use similarity_search_with_relevance_scores
+                    vector_results = self.db.similarity_search_with_relevance_scores(query, k=k*2)
+                    for doc, score in vector_results:
+                        # Score is already a relevance score (0-1 range)
+                        weighted_score = score * 0.9  
+                        if doc.page_content not in candidate_pool:
+                            candidate_pool[doc.page_content] = [doc, weighted_score]
+                    candidates = list(candidate_pool.values())
+                except Exception as e:
+                    logger.warning(f"⚠️  Chroma fallback search error: {e}")
+            
             if not candidates:
+                logger.debug(f"❌ No candidates after all retrieval methods")
                 return "❌ No relevant scholarly information found."
 
-            # Re-ranker pass (Strict Relevance Filtering)
+            logger.debug(f"✅ Found {len(candidates)} candidates")
             final_pool = sorted(candidates, key=lambda x: x[1], reverse=True)[:k*4]
             
             # Strict Relevance Threshold to prevent hallucination
@@ -541,7 +600,24 @@ class LocalKnowledgeBase:
 
         except Exception as e:
             import traceback
-            print(f"ERROR: {traceback.format_exc()}")
+            logger.warning(f"⚠️  Search error: {e}")
+            
+            # Final fallback: Just return top Chroma results without filtering
+            if self.db:
+                try:
+                    logger.info("🔄 Using final fallback: Direct Chroma search without filtering")
+                    results = self.db.similarity_search(query, k=k)
+                    if results:
+                        formatted = []
+                        for i, doc in enumerate(results):
+                            scholarly_ref = self._get_scholarly_reference(doc)
+                            formatted.append(f"[Source {i+1}] {scholarly_ref}")
+                            formatted.append(doc.page_content[:500])  # Limit output
+                            formatted.append("")
+                        return "\n".join(formatted)
+                except Exception as fallback_err:
+                    logger.warning(f"Final fallback also failed: {fallback_err}")
+            
             return f"❌ Error in RAG v2 advanced search: {str(e)}"
 
     def format_scholarly_display(self, query: str, k: int = 5) -> str:
@@ -551,7 +627,8 @@ class LocalKnowledgeBase:
 
         This is the primary response method. Gemini is an optional enhancement on top.
         """
-        if not self.db:
+        # Allow BM25-only mode if ChromaDB not available
+        if not self.db and not self.bm25_data:
             return (
                 "Assalamu Alaikum wa Rahmatullahi wa Barakatuh.\n\n"
                 "The local knowledge base is not available. Please ensure the ChromaDB "

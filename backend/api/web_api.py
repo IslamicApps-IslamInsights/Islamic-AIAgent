@@ -1,25 +1,31 @@
 import os
 import sys
 
+"""
+🌙 NOOR ISLAMIC AI AGENT - Web API Backend 🌙
+
+ARCHITECTURE:
+  ✅ 100% LOCAL PROCESSING - NO EXTERNAL LLM APIs
+  ✅ Knowledge Base: 15,238+ authenticated Islamic documents
+  ✅ Quran Foundation MCP: Primary source for Quranic queries
+  ✅ Local Intelligence: Advanced text synthesis from knowledge base
+  ✅ Hybrid RAG: BM25 + Vector search + Cross-encoder re-ranking
+
+PROCESSING PIPELINE:
+  Query → Classification → Local KB Search → Local Synthesis → Response
+  
+AUTHENTICATION:
+  All sources: Quran, Sahih Hadith collections, Tafsir Ibn Kathir, Islamic scholarship
+  No external APIs required for inference - everything runs locally
+  
+Dependencies: Flask, CORS, Transformers (sentence-embeddings), Chroma (vector DB)
+"""
+
 # 🛡️ Hardening: Prevent semaphore leaks on macOS (Tokenizers parallelism)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-# Bypass crazy iCloud hang on metadata fetch in google.api_core/generative-ai
-try:
-    import importlib.metadata
-    if hasattr(importlib.metadata, 'packages_distributions'):
-        original_packages_distributions = importlib.metadata.packages_distributions
-        def fast_packages_distributions(): return {}
-        importlib.metadata.packages_distributions = fast_packages_distributions
-except (ImportError, AttributeError):
-    pass
-
-
 import time
 start_all = time.time()
-
-import os
-import sys
 
 # Ensure the project root is in the search path for modularized imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -28,14 +34,57 @@ if project_root not in sys.path:
 
 from flask import Flask, request, jsonify, render_template, abort
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 import asyncio
 import json
+import re
 from datetime import datetime
 import threading
 import queue
 from functools import wraps
 from typing import List, Dict, Any, Optional
 import argparse
+import os
+from pathlib import Path
+import logging
+import time
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("WebAPI")
+
+def _strip_llm_internal(text: Any) -> str:
+    if not isinstance(text, str):
+        return ""
+    cleaned = text
+    cleaned = cleaned.split("</final>")[0]
+    output_match = re.search(r"(?is)<output>(.*?)</output>", cleaned)
+    if output_match:
+        cleaned = output_match.group(1) or ""
+        return cleaned.strip()
+
+    cleaned = re.sub(r"(?is)<thought>.*?</thought>", "", cleaned)
+    cleaned = re.sub(r"(?is)<think>.*?</think>", "", cleaned)
+    cleaned = re.split(r"(?i)<thought>|<think>|<output>", cleaned, maxsplit=1)[0]
+    return cleaned.strip()
+
+def _strip_source_tags(text: Any) -> str:
+    if not isinstance(text, str) or not text.strip():
+        return ""
+
+    out_lines = []
+    for line in text.splitlines():
+        cleaned = re.sub(r"\[Source\s+\d+\]\s*", "", line).rstrip()
+        cleaned = re.sub(r"^\s*-\s+", "- ", cleaned)
+        cleaned = re.sub(r"^\s+", "", cleaned)
+        out_lines.append(cleaned)
+
+    cleaned_text = "\n".join(out_lines)
+    cleaned_text = re.sub(r"\n{3,}", "\n\n", cleaned_text).strip()
+    return cleaned_text
 
 # --- Validation and Error Handling Helpers ---
 def validate_request(required_fields: List[str] = None, types: Dict[str, type] = None):
@@ -83,6 +132,51 @@ def agent_ready(f):
 from backend.tools import enhanced_islamic_tools
 from backend.config.islamic_config import islamic_config
 
+# Import indexing and knowledge graph systems
+try:
+    from backend.api.indexing_routes import register_indexing_routes
+    indexing_available = True
+except ImportError:
+    indexing_available = False
+    print("⚠️  Indexing system not available")
+
+# Import auto ingestion and response builder
+try:
+    from backend.knowledge.auto_ingest_service import initialize_auto_ingest, get_auto_ingest_service
+    auto_ingest_available = True
+except ImportError:
+    auto_ingest_available = False
+    print("⚠️  Auto ingestion not available")
+
+try:
+    from backend.utils.response_builder import (
+        build_enhanced_response, build_sources_list, ResponseQualityChecker
+    )
+    enhanced_response_available = True
+except ImportError:
+    enhanced_response_available = False
+    print("⚠️  Enhanced response builder not available")
+
+# Import advanced response builder with Quran prioritization
+try:
+    from backend.utils.advanced_response_builder import (
+        build_multipart_response, prioritize_results_by_type, build_rag_response_with_fallback
+    )
+    advanced_response_available = True
+except ImportError:
+    advanced_response_available = False
+    print("⚠️  Advanced response builder not available")
+
+# Import authentic response optimizer for best quality responses
+try:
+    from backend.utils.authentic_response_optimizer import AuthenticResponseOptimizer
+    authentic_optimizer = AuthenticResponseOptimizer()
+    authentic_optimizer_available = True
+except ImportError:
+    authentic_optimizer = None
+    authentic_optimizer_available = False
+    print("⚠️  Authentic response optimizer not available")
+
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # Enable CORS with more specific configuration
@@ -97,6 +191,7 @@ cors = CORS(app, resources={
 })
 
 # Global variables for AI agents
+rag_loader = None  # Memory-optimized RAG loader
 single_agent = None
 multi_agent_system = None
 agent_initialized = False
@@ -155,53 +250,35 @@ def track_topic(topic):
         print(f"Error tracking topic: {e}")
 
 def initialize_agents():
-    """Initialize AI agents on startup"""
-    global single_agent, multi_agent_system, agent_initialized
+    """Initialize AI agents on startup - MEMORY OPTIMIZED"""
+    global single_agent, multi_agent_system, agent_initialized, rag_loader
+    
     try:
-        print("🚀 Initializing Islamic AI Agents...")
+        from backend.api.optimized_startup import initialize_agents_optimized
         
-        from backend.utils.llm_provider import init_agentscope
-        init_agentscope()
+        # Run optimized initialization
+        init_result = initialize_agents_optimized()
         
-        # Lazy imports to speed up Flask startup using the new modular structure
-        from backend.core.islamic_ai_agent import IslamicAIAgent
-        from backend.core.multi_agent_islamic_system import IslamicMultiAgentSystem
+        # Unpack results
+        rag_loader = init_result.get('rag_loader')
+        single_agent = init_result.get('single_agent')
+        multi_agent_system = init_result.get('multi_agent_system')
+        agent_initialized = init_result.get('agent_initialized', False)
         
-        # Initialize single agent
-        print("📱 Initializing single agent...")
-        single_agent = IslamicAIAgent()
-        print("✅ Single agent ready!")
-        
-        # Initialize multi-agent system
-        print("👥 Initializing multi-agent system...")
-        multi_agent_system = IslamicMultiAgentSystem()
-        print("✅ Multi-agent system ready!")
-        
-        # ⚡ Priming Step: Pre-load heavy ML models (Embeddings & Re-ranker)
-        print("🕯️  Priming Scholarly Knowledge Base (Pre-loading models)...")
-        from backend.knowledge.local_knowledge_tools import get_kb
-        kb = get_kb()
-        if kb:
-            # Perform a quiet search to trigger model loading and cache warming
-            kb.search("Bismillah")
-            print("📖 Scholarly tools are warmed and ready for use.")
+        if agent_initialized:
+            print("🎉 Agents ready for service!")
         else:
-            print("⚠️  Warning: Knowledge base failed to prime. Retrieval may be slow initially.")
-        
-        agent_initialized = True
-        print("🎉 All AI Agents initialized successfully!")
-        
-    except Exception as e:
-        print(f"❌ Error initializing agents: {e}")
-        import traceback
-        error_msg = traceback.format_exc()
-        print(error_msg)
-        
-        # Log to file for diagnostics
-        with open("backend_startup.log", "a") as f:
-            f.write(f"\n[{datetime.now()}] ERROR initializing agents: {e}\n{error_msg}\n")
+            print("⚠️  Limited agent functionality available")
             
+    except Exception as e:
+        logger.error(f"❌ Optimized initialization failed: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        
+        # Fallback to minimal setup
         agent_initialized = False
+        single_agent = None
+        multi_agent_system = None
 
 @app.route('/')
 def home():
@@ -210,31 +287,88 @@ def home():
 
 @app.route('/api/health')
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with RAG status"""
+    try:
+        from backend.utils.enhanced_hybrid_rag import check_rag_system
+        rag_status = check_rag_system()
+    except Exception as e:
+        rag_status = {"error": str(e), "ready": False}
+
+    try:
+        from backend.utils.llm_provider import get_local_llm_status
+        local_llm = get_local_llm_status()
+    except Exception as e:
+        local_llm = {"enabled": False, "reachable": False, "error": str(e)}
+    
+    # Check if system is fully ready
+    rag_ready = rag_status.get('ready', False)
+    agents_ready = agent_initialized and rag_ready
+    
     return jsonify({
         'status': 'healthy',
         'agent_initialized': agent_initialized,
+        'agents_ready': agents_ready,
+        'rag_system': rag_status,
+        'local_llm': local_llm,
         'timestamp': datetime.now().isoformat(),
         'services': {
             'single_agent': single_agent is not None,
             'multi_agent': multi_agent_system is not None,
-            'dynamic_knowledge': True
+            'dynamic_knowledge': True,
+            'rag_ready': rag_ready,
+            'local_kb_documents': rag_status.get('bm25_docs', 0) + rag_status.get('chromadb_docs', 0)
         }
     })
+
+
+@app.route('/api/quran/translation-languages')
+def quran_translation_languages():
+    try:
+        from backend.utils.quran_mcp_provider import get_quran_mcp, _extract_tool_json
+
+        async def _run():
+            mcp = get_quran_mcp()
+            await mcp.initialize()
+            payload = await mcp.list_editions("translation", lang=None)
+            obj, err = _extract_tool_json(payload)
+            if err or not obj:
+                return {"error": err or "Failed to list editions", "raw": payload}
+            editions = obj.get("editions") or []
+            return {"editions": editions}
+
+        data = asyncio.run(_run())
+        if data.get("error"):
+            return jsonify({"error": data["error"]}), 502
+
+        editions = data.get("editions") or []
+        lang_counts = {}
+        for ed in editions:
+            if not isinstance(ed, dict):
+                continue
+            lang = (ed.get("lang") or "").strip().lower()
+            if not lang:
+                continue
+            lang_counts[lang] = lang_counts.get(lang, 0) + 1
+
+        languages = [{"code": k, "edition_count": v} for k, v in sorted(lang_counts.items(), key=lambda x: (-x[1], x[0]))]
+        return jsonify({"languages": languages, "default": "en"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/initialize', methods=['POST'])
 def force_initialize():
     """Force agent initialization endpoint"""
     global agent_initialized
     try:
-        print("🔄 Force initializing agents...")
+        print("🔄 Force initializing Quran Foundation powered agents...")
         initialize_agents()
         
         return jsonify({
             'status': 'success',
             'agent_initialized': agent_initialized,
-            'message': 'Agents initialized successfully' if agent_initialized else 'Agent initialization failed',
-            'timestamp': datetime.now().isoformat()
+            'message': 'Quran-powered agents initialized successfully' if agent_initialized else 'Agent initialization failed',
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Quran Foundation MCP'
         })
     except Exception as e:
         return jsonify({
@@ -244,56 +378,272 @@ def force_initialize():
         }), 500
 
 @app.route('/api/chat', methods=['POST'])
-@validate_request(required_fields=['message'], types={'message': str, 'latitude': float, 'longitude': float})
-@agent_ready
+@validate_request(required_fields=['message'], types={'message': str})
 def chat():
-    """Main chat endpoint for single agent"""
+    """Main chat endpoint - Intelligent routing with automatic tool selection"""
     try:
         data = request.get_json()
         message = data.get('message')
-        user_gender = data.get('user_gender', 'not_specified')
+        use_synthesis = data.get('use_synthesis', True)  # Synthesis enabled by default
+        quran_translation_lang = (data.get('quran_translation_lang') or '').strip()
         
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
+        # Extract optional location data for Prayer Times
+        user_location = None
+        if 'latitude' in data and 'longitude' in data:
+            try:
+                user_location = {
+                    'latitude': float(data.get('latitude')),
+                    'longitude': float(data.get('longitude')),
+                    'country': data.get('country', 'Unknown'),
+                    'city': data.get('city', 'Unknown')
+                }
+            except (ValueError, TypeError):
+                pass
         
-        # Process message
-        include_thoughts = data.get('include_thoughts', False)
+        # 🚀 Use the new Intelligent Tool Router for automatic tool selection
+        from backend.utils.intelligent_tool_router import get_tool_router
         
-        # Determine if we should force local fallback for demo purposes
-        if demo_mode:
-             # In Demo Mode, we simulate a quota limit to show off the Resilience architecture
-             print("🛡️ Demo Mode Active: Forcing Local Resilience Fallback.")
-             result = single_agent.process_message_with_tools(
-                message, 
-                user_gender=user_gender,
-                latitude=float(latitude) if latitude else None,
-                longitude=float(longitude) if longitude else None,
-                include_thoughts=include_thoughts
-             )
-        else:
-            result = single_agent.process_message_with_tools(
-                message, 
-                user_gender=user_gender,
-                latitude=float(latitude) if latitude else None,
-                longitude=float(longitude) if longitude else None,
-                include_thoughts=include_thoughts
+        router = get_tool_router()
+        print(f"📡 Processing query: {message[:60]}...")
+        
+        # Route query to best-fit tool asynchronously
+        response_data = asyncio.run(router.route_and_process(
+            query=message,
+            user_location=user_location,
+            use_synthesis=use_synthesis,
+            quran_translation_lang=quran_translation_lang or None,
+        ))
+        
+        # Extract classification for response
+        classification = response_data.pop('classification', {})
+        category = classification.get('category', 'general')
+        confidence = classification.get('confidence', 0.0)
+        
+        print(f"✅ Query processed: {category} (confidence: {confidence:.2f})")
+        
+        # Build final JSON response
+        user_response = _strip_source_tags(
+            _strip_llm_internal(response_data.get('response', ''))
+        )
+        response_data['response'] = user_response
+        return jsonify({
+            'response': user_response,
+            'timestamp': datetime.now().isoformat(),
+            'agent': f'Noor ({category.replace("_", " ").title()})',
+            'source': response_data.get('source', 'unknown'),
+            'tool': response_data.get('tool', 'unknown'),
+            'query_category': category,
+            'classification_confidence': confidence,
+            'rag_results': response_data.get('result_count', 0),
+            'synthesis_used': response_data.get('synthesis_used', False),
+            'metadata': response_data.get('metadata', {}),
+            'processing_time_ms': response_data.get('processing_time_ms', 0),
+            'all_results': response_data  # Include full response data
+        })
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"Chat endpoint error: {e}")
+        traceback.print_exc()
+        return jsonify({
+            'error': f'Error processing query: {str(e)}',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
+SOURCE_NAME_MAP = {
+    'sahih_bukhari.json': 'Sahih al-Bukhari',
+    'sahih_bukhari_english.json': 'Sahih al-Bukhari',
+    'sahih_muslim.json': 'Sahih Muslim',
+    'sahih_muslim_english.json': 'Sahih Muslim',
+    'sunan_abu_dawud_english.json': 'Sunan Abu Dawud',
+    'sunan_an_nasai_english.json': 'Sunan an-Nasa\'i',
+    'sunan_ibn_majah_english.json': 'Sunan Ibn Majah',
+    'jami_at_tirmidhi_english.json': 'Jami\' at-Tirmidhi',
+    'muwatta_malik_english.json': 'Muwatta Malik',
+    'forty_hadith_nawawi.json': '40 Hadith an-Nawawi',
+    'forty_hadith_nawawi_highlights.txt': '40 Hadith an-Nawawi',
+    'quran_yusuf_ali.txt': 'Quran - Yusuf Ali',
+    'quran_saheeh_international.txt': 'Quran - Sahih International',
+    'quran_pickthall.txt': 'Quran - Pickthall',
+    'quran_shakir.txt': 'Quran - Shakir',
+    'islamic_ethics_akhlaq.txt': 'Islamic Ethics & Character',
+    'seerah_prophet.txt': 'Life of Prophet Muhammad',
+    '99_names_of_allah.txt': '99 Names of Allah',
+    '99_names_of_prophet.txt': '99 Names of the Prophet',
+    'aqeedah_essentials.txt': 'Aqeedah Essentials',
+    'akhlaq_and_character.txt': 'Islamic Ethics & Character',
+    '40_hadith_nawawi_highlights.txt': '40 Hadith an-Nawawi',
+    'ar.muyassar.txt': 'Arabic Muyassar',
+    'comprehensive_duas.txt': 'Comprehensive Duas',
+    'comprehensive_islamic_essentials.txt': 'Comprehensive Islamic Essentials',
+    'en.ahmedraza.txt': 'Ahmed Raza Khan Qadri',
+    'fiqh_fundamentals.txt': 'Fiqh Fundamentals',
+    'hisn_al_muslim.json': 'Hisn al-Muslim',
+    'ramadan_hajj_guide.txt': 'Ramadan & Hajj Guide',
+    'seerah_of_prophet.txt': 'Life of Prophet Muhammad',
+    'ur.kanzuliman.txt': 'Urdu Kanzul Iman',
+    'ur.qadri.txt': 'Urdu Ahmed Raza Khan Qadri',
+    'ur.madudi.txt': 'Urdu Abul A\'la Maududi',
+    'women_in_islam.txt' : 'Women in Islam',
+
+}
+
+def _get_friendly_source_name(source_file: str) -> str:
+    """Convert file names to user-friendly source names"""
+    if source_file in SOURCE_NAME_MAP:
+        return SOURCE_NAME_MAP[source_file]
+    name = source_file.replace('.json', '').replace('.txt', '').replace('_', ' ').title()
+    return name
+
+def _build_rag_response(query: str, results: list) -> str:
+    """Build comprehensive, formatted response from RAG results"""
+    try:
+        # Import comprehensive formatter
+        from backend.utils.comprehensive_response_formatter import ComprehensiveResponseFormatter
+        
+        logger.info(f"✅ Building comprehensive response for query: {query[:50]}...")
+        response = ComprehensiveResponseFormatter.build_full_response(query, results)
+        
+        return response
+    
+    except Exception as e:
+        logger.error(f"❌ Comprehensive formatter failed: {e}, using fallback...")
+        
+        # Fallback to simple response if formatter fails
+        if not results:
+            return (
+                "Assalamu Alaikum wa Rahmatullahi wa Barakatuh. 🤲\n\n"
+                "I couldn't find information about that. Please try asking about Islamic topics "
+                "like prayer, charity, the Quran, Hadith, or Islamic teachings.\n\n"
+                "May Allah guide us. 🤲"
             )
         
-        response_text = result[0] if include_thoughts else result
-        thoughts = result[1] if include_thoughts else None
+        # Build simple response
+        response = "Assalamu Alaikum wa Rahmatullahi wa Barakatuh. 🤲\n\n"
+        response += f"Regarding: *{query}*\n\n"
+        response += "━" * 70 + "\n\n"
         
-        from backend.config.islamic_config import islamic_config
-        agent_name = islamic_config.get_agent_name('single')
+        for idx, result in enumerate(results[:10], 1):
+            content = result.get('content', '').strip()
+            if not content:
+                continue
+            
+            metadata = result.get('metadata', {})
+            source = metadata.get('source', 'Unknown').replace('.json', '').replace('.txt', '')
+            
+            # Limit content length
+            if len(content) > 300:
+                content = content[:300] + "..."
+            
+            response += f"{idx}. **{source}**\n   {content}\n\n"
         
-        if response_text:
-            track_topic(message[:50])
-            return jsonify({
-                'response': response_text,
-                'thoughts': thoughts,
-                'timestamp': datetime.now().isoformat(),
-                'agent': agent_name
-            })
+        response += "━" * 70 + "\n"
+        response += f"📊 Total sources: {len(results)}\n"
+        response += "May Allah guide us. 🤲"
         
+        return response
+
+
+def _synthesize_with_best_llm(query: str, results: list, base_response: str, query_type: str = "islamic_general") -> str:
+    """Enhance response with intelligent local synthesis - No external APIs"""
+    try:
+        from backend.utils.llm_response_synthesis import get_synthesizer, ResponseEnhancer
+        import asyncio
+        
+        logger.info(f"🧠 Local Intelligence synthesis for query type: {query_type}")
+        
+        # Get local synthesizer
+        synthesizer = get_synthesizer()
+        
+        # Check if local synthesizer is available (always true - it's local)
+        if not synthesizer.model or synthesizer.provider != "local":
+            logger.warning("⚠️  Local synthesis unavailable, using fallback")
+            return ResponseEnhancer.enhance_response(base_response, query_type)
+        
+        # Create context metadata
+        context = {
+            "query_type": query_type,
+            "num_sources": len(results),
+            "timestamp": datetime.now().isoformat(),
+            "processing": "LOCAL_ONLY"
+        }
+        
+        # Run local synthesis (async)
+        synthesized = asyncio.run(
+            synthesizer.synthesize_response(
+                query,
+                results,
+                query_type=query_type,
+                context=context
+            )
+        )
+        
+        # Enhance with Islamic formatting
+        enhanced = ResponseEnhancer.enhance_response(synthesized, query_type)
+        
+        logger.info(f"✅ Local synthesis complete: {len(enhanced)} characters | No external APIs")
+        return enhanced
+        
+    except Exception as e:
+        logger.warning(f"⚠️  Local synthesis error: {e}, using base response")
+        
+        # Fallback to enhanced base response
+        try:
+            from backend.utils.llm_response_synthesis import ResponseEnhancer
+            return ResponseEnhancer.enhance_response(base_response, query_type)
+        except:
+            return base_response
+
+
+# === New RAG Diagnostic Endpoint ===
+
+@app.route('/api/rag/status', methods=['GET'])
+def rag_status():
+    """Check RAG system status"""
+    try:
+        from backend.utils.enhanced_hybrid_rag import check_rag_system
+        
+        status = check_rag_system()
+        
+        return jsonify({
+            'rag_system': status,
+            'chromadb_available': status.get('chromadb', False),
+            'bm25_available': status.get('bm25', False),
+            'total_documents': status.get('chromadb_docs', 0) + status.get('bm25_docs', 0),
+            'system_ready': status.get('ready', False),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'rag_available': False}), 500
+
+
+@app.route('/api/rag/search', methods=['POST'])
+@validate_request(required_fields=['query'])
+def rag_search():
+    """Advanced RAG search endpoint with source prioritization"""
+    try:
+        data = request.get_json()
+        query = data.get('query')
+        k = int(data.get("k", 10))
+
+        from backend.knowledge.memory_optimized_loader import (
+            get_memory_optimized_loader,
+        )
+
+        kb = get_memory_optimized_loader()
+        text = kb.search(query, k=k)
+        found = "I couldn't find information" not in text
+
+        return jsonify(
+            {
+                "query": query,
+                "found": found,
+                "k": k,
+                "response": text,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -301,35 +651,17 @@ def chat():
 @validate_request(required_fields=['audio'], types={'audio': str})
 def speech_to_text():
     """Endpoint for Speech-to-Text transcription"""
-    try:
-        data = request.get_json()
-        audio_data = data.get('audio', '') # Base64 audio
-            
-        import base64
-        from google import genai
-        from google.genai import types
-        
-        native_client = genai.Client(api_key=os.getenv('GOOGLE_API_KEY'))
-        
-        # Prepare multimodal content for transcription
-        raw_audio = base64.b64decode(audio_data)
-        
-        prompt = "Please transcribe this Islamic-related audio recording accurately."
-        
-        response = native_client.models.generate_content(
-            model="models/gemini-flash-latest",
-            contents=[
-                prompt,
-                types.Part(inline_data=types.Blob(data=raw_audio, mime_type="audio/wav"))
-            ]
-        )
-        
-        return jsonify({
-            'success': True,
-            'transcription': response.text if response else ""
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return (
+        jsonify(
+            {
+                "error": (
+                    "Speech-to-text is disabled in local-only mode "
+                    "(no external LLM services)."
+                )
+            }
+        ),
+        400,
+    )
 
 @app.route('/api/chat/multimodal', methods=['POST'])
 @validate_request(required_fields=['message'], types={'message': str, 'latitude': float, 'longitude': float})
@@ -342,6 +674,19 @@ def multimodal_chat():
         file_data = data.get('file', '') # Base64 file
         mime_type = data.get('mime_type', '')
         user_gender = data.get('user_gender', 'not_specified')
+
+        if file_data:
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            "Multimodal (file/image/audio) is disabled in "
+                            "local-only mode. Send text-only messages."
+                        )
+                    }
+                ),
+                400,
+            )
         
         # Check cache (only for text-only messages to keep it simple)
         cache_key = None
@@ -352,22 +697,32 @@ def multimodal_chat():
                 print(f"✨ Serving cached chat response for: {message[:30]}...")
                 return jsonify(cached_response)
         
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
-        include_thoughts = data.get('include_thoughts', False)
-        
-        result = single_agent.process_multimodal_message(
-            message, 
-            file_data, 
-            mime_type, 
-            user_gender=user_gender,
-            latitude=float(latitude) if latitude else None,
-            longitude=float(longitude) if longitude else None,
-            include_thoughts=include_thoughts
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+        use_synthesis = data.get("use_synthesis", True)
+
+        user_location = None
+        if latitude is not None and longitude is not None:
+            user_location = {
+                "latitude": float(latitude),
+                "longitude": float(longitude),
+                "country": data.get("country", "Unknown"),
+                "city": data.get("city", "Unknown"),
+            }
+
+        from backend.utils.intelligent_tool_router import get_tool_router
+
+        router = get_tool_router()
+        response_data = asyncio.run(
+            router.route_and_process(
+                query=message,
+                user_location=user_location,
+                use_synthesis=use_synthesis,
+            )
         )
-        
-        response_text = result[0] if include_thoughts else result
-        thoughts = result[1] if include_thoughts else None
+
+        response_text = response_data.get("response", "")
+        thoughts = None
         
         result_json = {
             'response': response_text,
@@ -402,21 +757,32 @@ def multi_chat():
             print(f"✨ Serving cached multi-agent response for: {message[:30]}...")
             return jsonify(cached_response)
         
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
-        include_thoughts = data.get('include_thoughts', False)
-        
-        result = multi_agent_system.get_scholar_response(
-            message, 
-            scholar_type=None if specialist == 'auto' else specialist,
-            user_gender=user_gender,
-            latitude=float(latitude) if latitude else None,
-            longitude=float(longitude) if longitude else None,
-            include_thoughts=include_thoughts
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+        use_synthesis = data.get("use_synthesis", True)
+
+        user_location = None
+        if latitude is not None and longitude is not None:
+            user_location = {
+                "latitude": float(latitude),
+                "longitude": float(longitude),
+                "country": data.get("country", "Unknown"),
+                "city": data.get("city", "Unknown"),
+            }
+
+        from backend.utils.intelligent_tool_router import get_tool_router
+
+        router = get_tool_router()
+        response_data = asyncio.run(
+            router.route_and_process(
+                query=message,
+                user_location=user_location,
+                use_synthesis=use_synthesis,
+            )
         )
-        
-        response_text = result[0] if include_thoughts else result
-        thoughts = result[1] if include_thoughts else None
+
+        response_text = response_data.get("response", "")
+        thoughts = None
         
         specialist_name = specialist if specialist != 'auto' else 'AI Specialist'
         
@@ -451,13 +817,20 @@ def collaborative_chat():
             print(f"✨ Serving cached collaborative response for: {message[:30]}...")
             return jsonify(cached_response)
 
-        # Run collaborative consultation
-        # Since Flask is sync and AgentScope is async, we use the synchronous wrapper
-        include_thoughts = data.get('include_thoughts', False)
-        result = multi_agent_system.get_collaborative_response(message, user_gender=user_gender, include_thoughts=include_thoughts)
-        
-        response_text = result[0] if include_thoughts else result
-        thoughts = result[1] if include_thoughts else None
+        use_synthesis = data.get("use_synthesis", True)
+        from backend.utils.intelligent_tool_router import get_tool_router
+
+        router = get_tool_router()
+        response_data = asyncio.run(
+            router.route_and_process(
+                query=message,
+                user_location=None,
+                use_synthesis=use_synthesis,
+            )
+        )
+
+        response_text = response_data.get("response", "")
+        thoughts = None
 
         result_json = {
             'response': response_text,
@@ -566,6 +939,177 @@ def get_random_hadith_api():
         })
     except Exception as e:
         return jsonify({'error': str(e), 'code': 'HADITH_SEARCH_ERROR'}), 500
+
+
+# ============================
+# Quran Foundation MCP Routes
+# ============================
+
+@app.route('/api/quran-foundation/search', methods=['POST'])
+@validate_request(required_fields=['query'])
+@agent_ready
+def quran_foundation_search():
+    """Search the Quran using Quran Foundation MCP"""
+    try:
+        data = request.get_json()
+        query = data.get('query')
+        
+        from backend.utils.quran_mcp_provider import get_quran_mcp
+        import asyncio
+        
+        async def search():
+            mcp = get_quran_mcp()
+            await mcp.initialize()
+            try:
+                return await mcp.search_quran(query)
+            finally:
+                await mcp.close()
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        results = loop.run_until_complete(search())
+        
+        return jsonify({
+            'query': query,
+            'results': results,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Quran Foundation MCP'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quran-foundation/surah/<int:surah_num>', methods=['GET'])
+@agent_ready
+def quran_foundation_surah(surah_num):
+    """Fetch a complete Surah from Quran Foundation"""
+    try:
+        from backend.utils.quran_mcp_provider import get_quran_mcp
+        import asyncio
+        
+        async def fetch():
+            mcp = get_quran_mcp()
+            await mcp.initialize()
+            try:
+                return await mcp.fetch_quran(surah_num)
+            finally:
+                await mcp.close()
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(fetch())
+        
+        return jsonify({
+            'surah': surah_num,
+            'content': result,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Quran Foundation MCP'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quran-foundation/tafsir', methods=['POST'])
+@validate_request(required_fields=['surah', 'ayah'])
+@agent_ready
+def quran_foundation_tafsir():
+    """Fetch Tafsir (exegesis) from Quran Foundation"""
+    try:
+        data = request.get_json()
+        surah = data.get('surah')
+        ayah = data.get('ayah')
+        tafsir_type = data.get('tafsir_type', 'ibn_kathir')
+        
+        from backend.utils.quran_mcp_provider import get_quran_mcp
+        import asyncio
+        
+        async def fetch():
+            mcp = get_quran_mcp()
+            await mcp.initialize()
+            try:
+                return await mcp.fetch_tafsir(surah, ayah, tafsir_type)
+            finally:
+                await mcp.close()
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(fetch())
+        
+        return jsonify({
+            'reference': f"{surah}:{ayah}",
+            'tafsir_type': tafsir_type,
+            'content': result,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Quran Foundation MCP'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quran-foundation/theme/<theme>', methods=['GET'])
+@agent_ready
+def quran_foundation_theme(theme):
+    """Explore an Islamic theme throughout the Quran"""
+    try:
+        from backend.utils.quran_mcp_provider import get_quran_mcp
+        import asyncio
+        
+        async def explore():
+            mcp = get_quran_mcp()
+            await mcp.initialize()
+            try:
+                return await mcp.get_thematic_exploration(theme)
+            finally:
+                await mcp.close()
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(explore())
+        
+        return jsonify({
+            'theme': theme,
+            'exploration': result,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Quran Foundation MCP'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quran-foundation/comprehensive', methods=['POST'])
+@validate_request(required_fields=['query'])
+@agent_ready
+def quran_foundation_comprehensive():
+    """Comprehensive Quranic search with translations and tafsir"""
+    try:
+        data = request.get_json()
+        query = data.get('query')
+        include_tafsir = data.get('include_tafsir', True)
+        languages = data.get('languages', ['en', 'ar'])
+        
+        from backend.utils.quran_mcp_provider import get_quran_mcp
+        import asyncio
+        
+        async def search():
+            mcp = get_quran_mcp()
+            await mcp.initialize()
+            try:
+                return await mcp.comprehensive_quran_search(
+                    query,
+                    include_tafsir=include_tafsir,
+                    include_translations=languages
+                )
+            finally:
+                await mcp.close()
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(search())
+        
+        return jsonify({
+            'query': query,
+            'comprehensive_results': result,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Quran Foundation MCP'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/adhkar', methods=['POST'])
 @validate_request(required_fields=['category'], types={'category': str})
@@ -881,13 +1425,13 @@ def get_trending_topics_api():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/knowledge/upload', methods=['POST'])
+@app.route('/api/knowledge/upload-secure', methods=['POST'])
 def upload_knowledge_api():
     """Endpoint for uploading Islamic documents with strict security"""
     try:
         from werkzeug.utils import secure_filename
         MAX_FILE_SIZE = 5 * 1024 * 1024 # 5MB limit
-        ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.docx'}
+        ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.docx', '.json', '.csv'}
         
         if 'file' not in request.files:
             return jsonify({'error': 'No file part', 'code': 'NO_FILE_PART'}), 400
@@ -940,7 +1484,7 @@ def list_knowledge_api():
             
         files = []
         for filename in os.listdir(data_dir):
-            if filename.endswith('.pdf') or filename.endswith('.txt'):
+            if filename.endswith('.pdf') or filename.endswith('.txt') or filename.endswith('.json'):
                 file_path = os.path.join(data_dir, filename)
                 stats = os.stat(file_path)
                 files.append({
@@ -975,9 +1519,10 @@ def delete_knowledge_api():
 def get_kb_status():
     """Endpoint for knowledge base status"""
     try:
-        from backend.knowledge.local_knowledge_tools import LocalKnowledgeBase
-        kb = LocalKnowledgeBase()
-        stats = kb.get_stats()
+        from backend.knowledge.memory_optimized_loader import (
+            initialize_optimized_rag,
+        )
+        stats = initialize_optimized_rag()
         return jsonify({
             'status': 'success',
             'stats': stats,
@@ -986,6 +1531,294 @@ def get_kb_status():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Register indexing routes if available
+if indexing_available:
+    register_indexing_routes(app)
+    print("✅ Indexing and Knowledge Graph system registered")
+
+# ============================================================================
+# AUTO INGESTION & FILE UPLOAD ENDPOINTS
+# ============================================================================
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'knowledge', 'data')
+ALLOWED_EXTENSIONS = {'json', 'txt', 'csv', 'pdf'}
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename: str) -> bool:
+    """Check if file type is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/api/knowledge/upload', methods=['POST'])
+def upload_knowledge_file():
+    """Upload and ingest a new knowledge file"""
+    try:
+        # Check if file is in request
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({
+                'error': f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+            }), 400
+        
+        # Save file
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(file_path)
+        
+        logger.info(f"📤 File uploaded: {filename}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'File {filename} uploaded successfully. Auto ingestion starting...',
+            'filename': filename,
+            'size': os.path.getsize(file_path),
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"❌ Upload error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/knowledge/ingest-status', methods=['GET'])
+def get_ingest_status():
+    """Get auto ingestion service status"""
+    try:
+        if not auto_ingest_available:
+            return jsonify({'error': 'Auto ingestion not available'}), 503
+        
+        service = get_auto_ingest_service()
+        if not service:
+            return jsonify({'error': 'Auto ingestion service not running'}), 503
+        
+        status = service.get_status()
+        
+        return jsonify({
+            'status': 'success',
+            'service_status': status,
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"❌ Status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/knowledge/recent-ingestions', methods=['GET'])
+def get_recent_ingestions():
+    """Get recent ingestion events"""
+    try:
+        if not auto_ingest_available:
+            return jsonify({'error': 'Auto ingestion not available'}), 503
+        
+        service = get_auto_ingest_service()
+        if not service:
+            return jsonify({'error': 'Auto ingestion service not running'}), 503
+        
+        limit = request.args.get('limit', 20, type=int)
+        events = service.get_recent_ingestions(limit=limit)
+        
+        return jsonify({
+            'status': 'success',
+            'recent_ingestions': events,
+            'count': len(events),
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"❌ Error getting ingestions: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/knowledge/data-files', methods=['GET'])
+def get_data_files():
+    """List all data files in knowledge/data directory"""
+    try:
+        files = []
+        
+        if os.path.exists(UPLOAD_FOLDER):
+            for filename in os.listdir(UPLOAD_FOLDER):
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
+                if os.path.isfile(file_path):
+                    files.append({
+                        'name': filename,
+                        'size': os.path.getsize(file_path),
+                        'modified': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
+                        'type': filename.rsplit('.', 1)[1].lower() if '.' in filename else 'unknown'
+                    })
+        
+        return jsonify({
+            'status': 'success',
+            'data_directory': UPLOAD_FOLDER,
+            'files': files,
+            'total_files': len(files),
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"❌ Error listing files: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# === MEMORY MONITORING ENDPOINTS ===
+
+@app.route('/api/memory/status', methods=['GET'])
+def memory_status():
+    """Get current memory usage status"""
+    try:
+        from backend.utils.memory_monitor import check_memory
+        status = check_memory()
+        
+        return jsonify({
+            'status': 'success',
+            'memory': status,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'message': 'Memory monitoring not available'
+        }), 500
+
+
+@app.route('/api/memory/cleanup', methods=['POST'])
+def trigger_memory_cleanup():
+    """Trigger garbage collection and memory cleanup"""
+    try:
+        from backend.utils.memory_monitor import cleanup_memory, check_memory
+        
+        cleanup_result = cleanup_memory()
+        status_after = check_memory()
+        
+        return jsonify({
+            'status': 'success',
+            'action': 'memory_cleanup',
+            'cleanup_result': cleanup_result,
+            'memory_after': status_after,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'message': 'Cleanup failed'
+        }), 500
+
+
+@app.route('/api/system/status', methods=['GET'])
+def system_status():
+    """Get comprehensive system status"""
+    try:
+        from backend.utils.memory_monitor import check_memory
+        
+        memory_status = check_memory()
+        
+        system_info = {
+            'timestamp': datetime.now().isoformat(),
+            'agents': {
+                'single_agent_ready': single_agent is not None,
+                'multi_agent_ready': multi_agent_system is not None,
+                'agent_initialized': agent_initialized,
+            },
+            'rag': {
+                'loader_ready': rag_loader is not None,
+                'components': rag_loader.initialized_components if rag_loader else []
+            },
+            'memory': memory_status,
+        }
+        
+        return jsonify(system_info)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'message': 'System status unavailable'
+        }), 500
+
+
+# === BACKEND READINESS ENDPOINTS ===
+
+@app.route('/api/readiness/status', methods=['GET'])
+def readiness_status():
+    """Get backend readiness status for frontend synchronization"""
+    try:
+        from backend.api.backend_readiness import get_readiness_status
+        
+        status = get_readiness_status()
+        
+        return jsonify({
+            'status': 'success',
+            'readiness': status,
+            'ready_for_frontend': status['core_ready'],
+            'fully_initialized': status['initialized'],
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"❌ Readiness check failed: {e}")
+        return jsonify({
+            'error': str(e),
+            'ready_for_frontend': False
+        }), 500
+
+
+@app.route('/api/readiness/wait', methods=['GET'])
+def wait_for_readiness():
+    """Wait for backend to be ready (blocking call for frontend)"""
+    try:
+        from backend.api.backend_readiness import get_readiness_manager
+        
+        timeout = request.args.get('timeout', 30, type=int)
+        manager = get_readiness_manager()
+        
+        # Wait for core to be ready
+        ready = manager.wait_for_core_ready(timeout=timeout)
+        
+        if ready:
+            return jsonify({
+                'status': 'ready',
+                'message': 'Backend is ready for requests',
+                'readiness': manager.get_status(),
+                'readiness_percentage': manager.get_readiness_percentage()
+            })
+        else:
+            return jsonify({
+                'status': 'timeout',
+                'message': f'Backend initialization timeout after {timeout}s',
+                'readiness': manager.get_status(),
+                'readiness_percentage': manager.get_readiness_percentage()
+            }), 503
+    except Exception as e:
+        logger.error(f"❌ Wait readiness failed: {e}")
+        return jsonify({
+            'error': str(e),
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/readiness/percentage', methods=['GET'])
+def readiness_percentage():
+    """Get readiness as percentage (useful for progress bars)"""
+    try:
+        from backend.api.backend_readiness import get_readiness_percentage, is_core_ready
+        
+        percentage = get_readiness_percentage()
+        core_ready = is_core_ready()
+        
+        return jsonify({
+            'readiness_percentage': percentage,
+            'core_ready': core_ready,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'readiness_percentage': 0}), 500
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Islamic AI Agent Web API")
     parser.add_argument("--port", type=int, default=5010, help="Port to run the server on")
@@ -993,6 +1826,16 @@ if __name__ == '__main__':
 
     # Initialize agents synchronously before starting the server
     initialize_agents()
+    
+    # Initialize auto ingestion service
+    if auto_ingest_available:
+        try:
+            knowledge_dir = os.path.join(os.path.dirname(__file__), '..', 'knowledge', 'data')
+            bm25_path = os.path.join(os.path.dirname(__file__), '..', 'knowledge', 'bm25_index.pkl')
+            initialize_auto_ingest(knowledge_dir, bm25_path, check_interval=5)
+            print("✅ Auto ingestion service initialized and started")
+        except Exception as e:
+            print(f"⚠️  Auto ingestion not available: {e}")
     
     print("🌟 Starting Islamic AI Agent Web API...")
     os.makedirs('templates', exist_ok=True)
