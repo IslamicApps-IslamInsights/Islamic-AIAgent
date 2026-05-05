@@ -1,77 +1,70 @@
-# Knowledge Base Technical Details - Islamic AI Agent
+# Knowledge Base Technical Details - Noor (RAG)
 
-The **Noor** KNOWLEDGE BASE (RAG Engine) is designed for professional-grade semantic search and keyword precision. It ensures that the system's "Scholarly First" priority is upheld by grounding every response in authentic locally-provided texts.
+Noor’s local Knowledge Base is designed to retrieve reliable evidence (Quran translations, hadith collections, seerah, ethics, duas, etc.) and then let the local LLM write a helpful answer that stays grounded in that evidence.
 
----
-
-## 🏗️ Retrieval Pipeline Architecture
+## Retrieval Pipeline
 
 ```mermaid
 sequenceDiagram
-    participant U as User Query
-    participant Q as Query Processor
-    participant C as ChromaDB (Semantic)
-    participant B as BM25 (Keyword)
-    participant R as FlashRerank (Cross-Encoder)
-    participant A as Agent Context
+    participant U as User
+    participant API as Flask API
+    participant R as Retriever (Hybrid RAG)
+    participant V as ChromaDB (Vector)
+    participant K as BM25 (Keyword)
+    participant S as Evidence Pack
+    participant L as Local LLM
 
-    U->>Q: "What are the rules for Zakat on Gold?"
-    Q->>C: Vector Similarity Search
-    Q->>B: Keyword (BM25) Match
-    C-->>Q: Top 20 Semantic Candidates
-    B-->>Q: Top 20 Keyword Candidates
-    Q->>R: Deduplicate & Rerank (Cross-Encoder)
-    R-->>A: Top 5 High-Precision Chunks
+    U->>API: POST /api/chat
+    API->>R: retrieve(query)
+    R->>V: vector search (E5 embeddings)
+    R->>K: BM25 keyword search
+    V-->>R: semantic candidates
+    K-->>R: keyword candidates
+    R-->>S: top evidence snippets + references
+    S->>L: synthesize from evidence
+    L-->>API: grounded answer
 ```
 
-## 🧠 Core Components
+## Core Components
 
-### 1. Vector Store (Semantic)
-- **Engine**: [ChromaDB](https://www.trychroma.com/)
-- **Embedding Model**: `intfloat/multilingual-e5-large`
-- **Purpose**: Captures the deep semantic meaning of queries, supporting complex theological and Jurisprudential concepts across multiple languages (Arabic, English, etc.).
-- **Dimension**: 1024-dimensional dense vectors.
+### 1) Vector Store (semantic)
+- Engine: ChromaDB (persistent)
+- Embedding model: `intfloat/multilingual-e5-large`
+- Purpose: semantic retrieval across Arabic/English/Urdu content
 
-### 2. BM25 (Keyword Precision)
-- **Engine**: `rank_bm25` (Okapi BM25 implementation)
-- **Purpose**: Essential for pinpointing specific references like **"Surah 17:78"** or **"Bukhari 1160"** where exact term matching is more reliable than semantic similarity.
-- **Normalization**: Tokenized and lowercased using NLTK.
+### 2) BM25 (keyword precision)
+- Engine: `rank_bm25`
+- Purpose: exact matching for references and phrases (e.g., “Bukhari 1160”, “Surah 17:78”)
 
-### 3. Cross-Encoder Reranking
-- **Engine**: `FlashRerank` (`ms-marco-MiniLM-L-6-v2`)
-- **Purpose**: Computes a detailed relevance score between the query and each candidate chunk. This is a computationally intensive step that ensures only the most contextually relevant evidence reaches the AI agent.
-- **Filtering**: Only results with a confidence score > 0.3 (adjustable) are passed to the agent.
+### 3) Optional reranking
+- A reranker may be used when available to improve ordering of candidates.
+- Typical model (optional): `BAAI/bge-reranker-v2-m3`
 
----
+## Ingestion & Pre-processing
 
-## 📥 Ingestion & Pre-processing
+### Source folder
+- All knowledge files live in: `backend/knowledge/data/`
 
-The `ingest_data.py` script handles the lifecycle of scholarly documents:
+### Supported file types
+- `json`, `txt`, `csv`, `pdf`
 
-### 1. Incremental Ingestion
-- **Hash-Based Tracking**: MD5 hashes are used to store the state of every file in `ingestion_state.json`. 
-- **Efficiency**: Only new or modified files are processed, saving compute and storage costs.
+### Full ingestion (Chroma + BM25)
+- Script: `python3 backend/knowledge/full_data_ingestion.py`
+- Outputs:
+  - `backend/knowledge/chroma_db_full/` (Chroma persistent store)
+  - `backend/knowledge/bm25_full_index.pkl` (BM25 index)
 
-### 2. Scholarly JSON Parsing
-Beyond standard PDFs and TXTs, the system specially parses **Authentic Scholarly JSONs**:
-- **Hadith Collections**: Maps `narrator`, `hadithnumber`, `grade`, and `text`.
-- **Dua/Adhkar (Hisn al-Muslim)**: Groups by category (Morning/Evening) and includes source references.
-- **Metadata**: Parses surah names, meanings, and transliterations.
+### Auto-ingestion (BM25 updates)
+- Service: `backend/knowledge/auto_ingest_service.py`
+- Watches the data folder and updates BM25 when new/modified files appear.
+- This is designed for quick “drop a file and search it” workflows.
 
-### 3. Chunking Strategy
-- **Recursive Character Splitter**: 1200 characters with a 300-character overlap.
-- **Separators**: Priority given to paragraph breaks (`\n\n`) to avoid splitting a single Hadith or Verse across multiple chunks.
+## Reset / Rebuild
 
----
-
-## 📂 Folder Structure
-
-- `/knowledge_base/data/`: Place your authentic PDFs, TXTs, and JSONs here.
-- `/knowledge_base/chroma_db/`: Local persistent vector database.
-- `/knowledge_base/bm25_index.pkl`: Serialized keyword index.
-- `/knowledge_base/local_knowledge_tools.py`: Search and Rerank logic.
-
----
-
-> [!TIP]
-> To reset the knowledge base and force a full re-ingestion, delete the `chroma_db/` folder and `ingestion_state.json`, then run `python3 knowledge_base/ingest_data.py`.
+If the embedding model or ingestion settings change, rebuild the stores:
+1. Stop the backend.
+2. Remove the persisted stores:
+   - `backend/knowledge/chroma_db_full/`
+   - `backend/knowledge/bm25_full_index.pkl`
+3. Run full ingestion again:
+   - `python3 backend/knowledge/full_data_ingestion.py`

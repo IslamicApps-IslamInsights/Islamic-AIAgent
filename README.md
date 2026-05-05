@@ -1,100 +1,74 @@
-# 🕌 Noor - The Premium Islamic AI Agent
+# 🕌 Noor - Islamic AI Agent (Local-First)
+![Noor Logo](frontend/public/noor-logo.png)
 
-![Noor Logo](file:///Users/fahadiqbal/Documents/Latest%20Codes/Islamic%20work/Islamic%20AI%20Agent/islamic-ai-agent/public/noor-logo.png)
+Noor is a local-first Islamic AI agent that combines:
+- A private, local Knowledge Base (Hybrid RAG: BM25 + ChromaDB)
+- A fully local answer synthesizer (llama.cpp / OpenAI-compatible server)
+- Quran Foundation MCP for Quran-first queries (canonical Quran, translations, tafsir, and related tools)
 
-A state-of-the-art, "Museum Grade" scholarly AI companion designed for the modern Muslim. **Noor** combines advanced **Multi-Agent Deliberation** via AgentScope with a world-class **Multilingual RAG (Retrieval-Augmented Generation)** engine to provide authentic, citation-backed Islamic guidance.
+Noor is for learning and reference. For personal rulings and complex cases, consult qualified local scholars.
 
----
+## ✅ Core Best Practices (What makes answers “Islamic” + engaging)
+- Quran-first: Quran Foundation MCP is the primary source for Quran-related questions.
+- Evidence-grounded: the generator is instructed to answer only from retrieved evidence and to avoid fabrication.
+- User-friendly: clear guidance, practical steps, gentle encouragement, and one short follow-up question to keep the user engaged.
+- Local-only: no external LLM APIs required for inference.
 
-## 🌟 Vision & Philosophy
+## 🚀 Quick Start (Recommended)
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
 
-Noor is built upon the synthesis of two worlds: **Authentic Tradition** and **Advanced AI**. Our mission is to provide an immersive, compassionate, and scholarly portal to Islamic knowledge while ensuring every response is grounded in primary Quranic and Prophetic sources.
-
-> [!IMPORTANT]
-> Noor is a tool for learning and reference. For complex Fiqh rulings or personal religious matters, users are always encouraged to consult with qualified local scholars.
-
----
-
-## 🚀 Key Features
-
-### 🏛️ Museum-Grade Scholarly Interface
-- **Premium Aesthetics**: Immersive, glassmorphic UI with refined Arabic typography (Amiri & Inter).
-- **Sanctuary Greeting**: A serene entry experience with interactive scholarly suggestion chips.
-- **Evidence Boxes**: Professional rendering of Quranic verses and Hadiths with formal citations.
-
-### 👥 Specialized Scholarly Team
-- **Sheikh Abdullah**: Quranic Sciences & Tafsir.
-- **Sheikha Aisha**: Hadith Authenticity & Sunnah.
-- **Sheikh Omar**: Jurisprudence (Fiqh) across all four major Madhabs.
-- **Sheikha Fatima**: Spirituality (Tazkiyah) and heart-based counseling.
-- **Imam Hassan**: The Synthesis Coordinator for unified guidance.
-
-### 🎯 Pro-Grade Knowledge Engine
-- **Hybrid Search**: Combining semantic ChromaDB (vector) with exact-match BM25 (keyword).
-- **Flash Reranking**: Advanced Cross-Encoder reranking for maximum precision.
-- **Local-First Priority**: Always searches your private authentic library before general training.
-- **Multimodal Mastery**: Process voice, images, and documents with Gemini 2.0 Flash level intelligence.
-
----
-
-## 📂 Project Structure
-
-```text
-├── backend/                   # Modular Python Backend
-│   ├── api/                   # Flask endpoints (web_api.py)
-│   ├── core/                  # Agent logic (Noor & Multi-Agent)
-│   ├── config/                # Environment & prompt configurations
-│   ├── tools/                 # Islamic scholarly tools (Quran/Hadith APIs)
-│   ├── knowledge/             # RAG Engine (Local knowledge base)
-│   └── data/                  # Persistent analytics and data
-├── frontend/                  # React (Vite) User Interface
-├── docs/                      # Comprehensive Documentation Suite
-├── scripts/                   # Diagnostic and maintenance scripts
-├── logs/                      # Application logs
-└── run_app.sh                 # Unified application launcher
-```
-
----
-
-## 📚 Documentation Deep Dives
-
-- **[Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)**: How everything connects.
-- **[Scholarly System](docs/SCHOLARLY_SYSTEM.md)**: Deep dive into the agents and citation standards.
-- **[Knowledge Base (RAG)](docs/KNOWLEDGE_BASE_TECHNICAL.md)**: Technical details on the vector store and hybrid search.
-- **[API Reference](docs/API_REFERENCE.md)**: Documentation for backend endpoints.
-- **[Development Guide](docs/DEVELOPMENT_GUIDE.md)**: Setup, environments, and contributing.
-
----
-
-## 🛠️ Quick Start
-
-### 1. Prerequisites
-- **Python 3.9+** (3.10+ recommended)
-- **Node.js 18+**
-- **Google Gemini API Key**
-
-### 2. Environment Setup
-Create a `.env` file in the root:
-```env
-GOOGLE_API_KEY=your_gemini_key_here
-```
-
-### 3. Launch the Stack
-The simplest way to run Noor is using the unified runner script:
-
+### Run everything
 ```bash
-# Initialize the environment (first time only)
-chmod +x setup_venv.sh run_app.sh
-./setup_venv.sh
-
-# Start both Backend and Frontend
-./run_app.sh
+chmod +x run.sh
+./run.sh
 ```
 
-- **Frontend**: http://localhost:3001
-- **Backend Health**: http://localhost:5010/api/health
-- **Logs**: Check the `logs/` directory for detailed output.
+What `run.sh` handles:
+- Creates/updates `.venv` and installs Python deps
+- Ensures the local GGUF model exists (downloads if missing)
+- Starts llama.cpp server + backend + frontend
+- Runs ingestion when needed (so RAG is ready)
 
----
+## 📚 Knowledge Base (RAG)
+### Data folder
+- Add your knowledge files into: `backend/knowledge/data/`
 
-*Built with ❤️ for the Ummah by IslamInsights.com*
+### Supported upload types (backend)
+- Upload endpoint: `POST /api/knowledge/upload`
+  - Allowed: `json`, `txt`, `csv`, `pdf`
+- Secure upload endpoint: `POST /api/knowledge/upload-secure`
+  - Allowed: `pdf`, `txt`, `docx`, `json`, `csv` (5MB limit)
+
+### Manual full ingestion (optional)
+```bash
+python3 backend/knowledge/full_data_ingestion.py
+```
+
+### Embeddings model (must match)
+- `intfloat/multilingual-e5-large`
+
+## 🧠 Local LLM (Answer Synthesis)
+- Default architecture uses a local OpenAI-compatible server (llama.cpp server).
+- The synthesis prompt enforces:
+  - No hidden reasoning tags
+  - Islamic tone + practical guidance
+  - One short follow-up question
+  - Citations grounded in retrieved sources (UI can render sources cleanly)
+
+## 🔎 Useful Endpoints
+- Health: `GET /api/health`
+- Upload KB file: `POST /api/knowledge/upload`
+- List KB files: `GET /api/knowledge/list`
+- List data folder files: `GET /api/knowledge/data-files`
+- Auto-ingest status: `GET /api/knowledge/ingest-status`
+
+## 📂 Project Structure (Short)
+```text
+backend/api/web_api.py          # Flask API
+backend/knowledge/              # RAG ingestion + Chroma/BM25 stores
+backend/utils/quran_mcp_provider.py  # Quran Foundation MCP integration
+frontend/                       # React (Vite) UI
+run.sh                          # One-command runner
+```

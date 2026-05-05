@@ -1,0 +1,16 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /Users/fahadiqbal/Downloads/Latest\\\\ Projects/Islamic-AIAgent && python3 -m py_compile backend/api/web_api\\.py && echo \"✅ Syntax is valid\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^pkill -f \"python\\.\\*web_api\\.py\" && sleep 2 && echo \"✅ Backend stopped\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^lsof -i -P -n 2>/dev/null \\| grep -E \"3001\\|5010\" \\|\\| echo \"Checking with curl\\.\\.\\.\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

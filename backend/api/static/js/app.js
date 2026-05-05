@@ -147,13 +147,24 @@ class IslamicAIApp {
             const response = await fetch('/api/health');
             const data = await response.json();
 
-            if (data.status === 'healthy' && data.agents_ready) {
-                console.log('✅ Agents are ready');
+            if (data.status === 'healthy' && data.agents_ready && data.services.rag_ready) {
+                console.log('✅ System Ready - AI Agent fully operational');
+                document.getElementById('statusIndicator')?.classList.add('ready');
+                return true;
+            } else if (data.status === 'healthy') {
+                console.log('⏳ System initializing... please wait');
+                // Retry after delay
+                setTimeout(() => this.checkAgentStatus(), 2000);
+                return false;
             } else {
-                console.log('⚠️ Agents may not be fully ready');
+                console.log('⏳ Checking system status');
+                return false;
             }
         } catch (error) {
-            console.log('❌ Error checking agent status:', error.message);
+            console.log('⏳ Connecting to system...');
+            // Retry on connection error
+            setTimeout(() => this.checkAgentStatus(), 3000);
+            return false;
         }
     }
 
@@ -1023,9 +1034,10 @@ class IslamicAIApp {
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
+                const ok = Boolean(data && (data.success === true || data.status === 'success'));
 
-                if (data.success) {
+                if (response.ok && ok) {
                     const item = document.createElement('div');
                     item.className = 'file-item';
                     item.innerHTML = `
@@ -1035,7 +1047,10 @@ class IslamicAIApp {
                     fileList.appendChild(item);
                     ingestBtn.disabled = false;
                 } else {
-                    alert(`Error uploading ${file.name}: ${data.error}`);
+                    const msg =
+                        (data && (data.error || data.message)) ||
+                        `HTTP ${response.status || 'error'}`;
+                    alert(`Error uploading ${file.name}: ${msg}`);
                 }
             } catch (error) {
                 console.error('Upload error:', error);
@@ -1049,16 +1064,23 @@ class IslamicAIApp {
         ingestBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ingesting...';
 
         try {
-            const response = await fetch('/api/knowledge/ingest', { method: 'POST' });
-            const data = await response.json();
+            const response = await fetch('/api/knowledge/ingest-status');
+            const data = await response.json().catch(() => ({}));
 
-            if (data.success) {
-                this.addMessage('📦 Knowledge ingestion started in the background. Your AI will be updated shortly.', 'agent');
+            if (response.ok && data && data.status === 'success') {
+                this.addMessage(
+                    '📦 Auto-ingestion is active. New files are ingested automatically in the background.',
+                    'agent'
+                );
                 setTimeout(() => {
-                    ingestBtn.innerHTML = '<i class="fas fa-check"></i> Success';
+                    ingestBtn.innerHTML = '<i class="fas fa-check"></i> Ready';
                     this.loadIngestedFiles();
-                }, 2000);
+                }, 1200);
+                return;
             }
+
+            const msg = (data && (data.error || data.message)) || `HTTP ${response.status || 'error'}`;
+            alert('Ingestion status unavailable: ' + msg);
         } catch (error) {
             alert('Error starting ingestion: ' + error.message);
             ingestBtn.disabled = false;
@@ -1073,10 +1095,14 @@ class IslamicAIApp {
             if (!response.ok) return;
             const data = await response.json();
 
-            if (data.files && data.files.length > 0) {
-                list.innerHTML = data.files.map(f => `
-                    <li><i class="fas fa-check-circle"></i> ${f}</li>
-                `).join('');
+            const files = (data && data.files) || [];
+            if (Array.isArray(files) && files.length > 0) {
+                list.innerHTML = files
+                    .map((f) => {
+                        const name = (f && (f.name || f.filename)) || String(f || '');
+                        return `<li><i class="fas fa-check-circle"></i> ${name}</li>`;
+                    })
+                    .join('');
             } else {
                 list.innerHTML = '<li>No documents ingested yet.</li>';
             }

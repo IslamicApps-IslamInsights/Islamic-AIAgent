@@ -19,9 +19,6 @@ class IslamicMultiAgentSystem:
         self.api_key = api_key or os.getenv('OPENAI_API_KEY') or os.getenv('GOOGLE_API_KEY')
         if not self.api_key:
             raise ValueError("API key required (OPENAI_API_KEY or GOOGLE_API_KEY)")
-            
-        # Agentscope global context will be initialized in setup_agents
-        import agentscope
         
         self.model_params = None
         
@@ -30,7 +27,7 @@ class IslamicMultiAgentSystem:
         self.model_config = None
         self.formatter = None
         self.toolkit = None
-        self.model_config_name = None
+        self.model = None
         self.setup_agents()
     
     def setup_agents(self, user_gender: str = "not_specified"):
@@ -43,14 +40,14 @@ class IslamicMultiAgentSystem:
             gender_prefix = "The user is your **Sister** in Islam. Address her respectfully as 'Sister' or 'Ukhti' where appropriate. Provide gender-specific guidance (Fiqh of Nisa) if the topic relates to women's matters."
 
         # 1. Quran & Tafsir Specialist
-        from agentscope.agents import ReActAgent
-        from agentscope.service import ServiceToolkit
+        from agentscope.agent import ReActAgent
+        from agentscope.tool import Toolkit
+        from agentscope.formatter import GeminiChatFormatter
         
         # Initialize AgentScope via unified provider
         from backend.utils.llm_provider import get_agentscope_model
-        model_config_name = get_agentscope_model()
-        from agentscope.formatters import GeminiFormatter
-        formatter = GeminiFormatter()
+        self.model = get_agentscope_model()
+        self.formatter = GeminiChatFormatter()
         
         # Tool imports (deferred)
         from backend.tools.enhanced_islamic_tools import (
@@ -63,14 +60,15 @@ class IslamicMultiAgentSystem:
         from backend.knowledge.local_knowledge_tools import search_local_knowledge
         
         from backend.utils.llm_provider import register_islamic_tool
-        self.toolkit = ServiceToolkit()
+        self.toolkit = Toolkit()
         for fn in [get_quran_verse, get_surah_info, search_islamic_content, search_local_knowledge]:
             register_islamic_tool(self.toolkit, fn)
         
         self.agents['quran_scholar'] = ReActAgent(
             name="Sheikh_Abdullah",
-            model_config_name=model_config_name,
-            service_toolkit=self.toolkit,
+            model=self.model,
+            formatter=self.formatter,
+            toolkit=self.toolkit,
             sys_prompt=f"""🕌 **Sheikh Abdullah - Senior Quran & Tafsir Scientist**
 
 {gender_prefix}
@@ -103,14 +101,15 @@ I am Sheikh Abdullah, a world-class scholar specializing in the Ulum al-Quran (S
         )
         
         # 2. Hadith & Sunnah Specialist
-        hadith_toolkit = ServiceToolkit()
+        hadith_toolkit = Toolkit()
         for fn in [get_hadith, search_islamic_content, search_local_knowledge]:
             register_islamic_tool(hadith_toolkit, fn)
         
         self.agents['hadith_scholar'] = ReActAgent(
             name="Sheikha_Aisha",
-            model_config_name=model_config_name,
-            service_toolkit=hadith_toolkit,
+            model=self.model,
+            formatter=self.formatter,
+            toolkit=hadith_toolkit,
             sys_prompt=f"""⭐ **Sheikha Aisha - Senior Hadith & Sunnah Scientist**
 
 {gender_prefix}
@@ -142,15 +141,16 @@ I am Sheikha Aisha, a leading authority in Hadith Sciences (Mustalah al-Hadith).
         )
         
         # 3. Fiqh & Islamic Law Specialist
-        fiqh_toolkit = ServiceToolkit()
+        fiqh_toolkit = Toolkit()
         for fn in [get_islamic_guidance, check_halal_guidance, get_prayer_times,
                    get_qibla_direction, get_madhab_view, get_fiqh_ruling, search_local_knowledge]:
             register_islamic_tool(fiqh_toolkit, fn)
         
         self.agents['fiqh_scholar'] = ReActAgent(
             name="Sheikh_Omar",
-            model_config_name=model_config_name,
-            service_toolkit=fiqh_toolkit,
+            model=self.model,
+            formatter=self.formatter,
+            toolkit=fiqh_toolkit,
             sys_prompt=f"""⚖️ **Sheikh Omar - Senior Fiqh & Shariah Scholar**
 
 {gender_prefix}
@@ -182,14 +182,15 @@ I am Sheikh Omar, an expert in Shariah law and contemporary Fiqh.
         )
         
         # 4. Spiritual Guidance & Duas Specialist
-        spiritual_toolkit = ServiceToolkit()
+        spiritual_toolkit = Toolkit()
         for fn in [get_dua, get_adhkar, get_name_of_allah, search_local_knowledge]:
             register_islamic_tool(spiritual_toolkit, fn)
         
         self.agents['spiritual_guide'] = ReActAgent(
             name="Sheikha_Fatima",
-            model_config_name=model_config_name,
-            service_toolkit=spiritual_toolkit,
+            model=self.model,
+            formatter=self.formatter,
+            toolkit=spiritual_toolkit,
             sys_prompt=f"""🤲 **Sheikha Fatima - Spiritual Guide & Dua Specialist**
 
 I am Sheikha Fatima, your dedicated spiritual guide. I nurture souls with:
@@ -214,8 +215,9 @@ I am Sheikha Fatima, your dedicated spiritual guide. I nurture souls with:
         # 5. The System Coordinator (Imam Hassan)
         self.agents['coordinator'] = ReActAgent(
             name="Imam_Hassan",
-            model_config_name=model_config_name,
-            service_toolkit=self.toolkit if hasattr(self, 'toolkit') else ServiceToolkit(),
+            model=self.model,
+            formatter=self.formatter,
+            toolkit=self.toolkit,
             sys_prompt=f"""🕌 **Imam Hassan - Islamic Knowledge Coordinator**
 
 I am Imam Hassan, your comprehensive Islamic guide. I synthesize wisdom from all Islamic sciences.
@@ -234,7 +236,7 @@ I am Imam Hassan, your comprehensive Islamic guide. I synthesize wisdom from all
         )
         
         # User agent
-        from agentscope.agents import UserAgent
+        from agentscope.agent import UserAgent
         self.user = UserAgent(name="user")
     
     def determine_specialist(self, query: str) -> str:
@@ -300,10 +302,6 @@ I am Imam Hassan, your comprehensive Islamic guide. I synthesize wisdom from all
             from agentscope.message import Msg
             query_msg = Msg(name="user", content=synthesis_prompt, role="user")
             
-            # Note: ReActAgent in AgentScope might not natively return thought_signature easily in its current wrapper.
-            # However, since we standardized on GEMINI_MODEL in llm_provider, 
-            # we can attempt to retrieve it if the response_msg contains it.
-
             # Get response from the agent
             import asyncio
             try:
@@ -366,13 +364,9 @@ I am Imam Hassan, your comprehensive Islamic guide. I synthesize wisdom from all
             
             # 2. Preparation for Single Call
             from backend.utils.llm_provider import get_agentscope_model
-            model_config_name = get_agentscope_model()
+            model = get_agentscope_model()
             
-            # For collaborative response, we still use the direct model call via model_config_name
-            # AgentScope 1.0.18 model wrappers can be called directly
-            from agentscope.models import get_model_wrapper
-            model = get_model_wrapper(model_config_name)
-            
+            # For collaborative response, we use the model directly
             conference_prompt = f"""
             COLLABORATIVE SCHOLARLY CONFERENCE
             
@@ -401,8 +395,7 @@ I am Imam Hassan, your comprehensive Islamic guide. I synthesize wisdom from all
             
             # 3. Direct Model Call
             try:
-                # Gemini 3 Flash supports thought_signature
-                # AgentScope model calls can accept keyword arguments for the underlying API
+                # Call the model with the conference prompt
                 response = model(conference_prompt, thought_signature=include_thoughts)
                 content = response.text if hasattr(response, 'text') else str(response)
                 thoughts = getattr(response, 'thought', None) if include_thoughts else None

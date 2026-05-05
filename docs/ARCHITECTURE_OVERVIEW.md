@@ -1,56 +1,74 @@
-# Architecture Overview - Islamic AI Agent
+# Architecture Overview - Noor (Local-First Islamic AI Agent)
 
-This document provides a high-level technical overview of how the **Noor** Islamic AI Agent integrates its various components to deliver an authentic scholarly experience.
+This document provides a high-level technical overview of how Noor combines a local Knowledge Base (RAG), Quran Foundation MCP, and a local LLM to deliver helpful Islamic answers that stay grounded in authentic sources.
 
-## 🧱 Component Block Diagram
+## Component Diagram
 
 ```mermaid
 graph TD
-    A[React/Vite Frontend] <-->|Rest API/HTTP| B[Flask Unified API]
-    B <-->|Orchestration| C[AgentScope Multi-Agent System]
-    B <-->|Streaming/Single| D[IslamicAIAgent Single-Agent]
-    C <-->|Shared Tools| E[Enhanced Islamic Tools]
-    D <-->|Shared Tools| E[Enhanced Islamic Tools]
-    E <-->|Remote API| F[Quran Cloud/Aladhan/Sunnah]
-    B <-->|RAG Query| G[Knowledge Base Tools]
-    G <-->|Hybrid Search| H[Vector Store & Keyword Index]
-    H <-->|Storage| I[ChromaDB / BM25 Index]
-    J[Ingest Engine] -->|Processing| I
+    A[React/Vite Frontend] <-->|HTTP JSON| B[Flask API: backend/api/web_api.py]
+    B --> C[Intelligent Router]
+    C -->|Quran-first queries| D[Quran Foundation MCP Provider]
+    D -->|JSON-RPC (Streamable HTTP + SSE)| E[Quran Foundation MCP Server]
+
+    C -->|General guidance| F[Hybrid RAG Retriever]
+    F --> G[BM25 Keyword Index]
+    F --> H[ChromaDB Vector Store]
+    H -->|Embeddings| I[intfloat/multilingual-e5-large]
+
+    C -->|Build evidence pack| J[Evidence Pack + Source References]
+    J -->|Synthesize| K[Local LLM (llama.cpp server)]
+    K --> B
+
+    L[Knowledge Upload API] --> M[backend/knowledge/data]
+    N[Auto Ingest Service] -->|Watches folder| M
+    N -->|Updates| G
 ```
 
-![alt text](image.png)
+## Interaction Flows
 
-## 🔄 Interaction Flows
+### 1) Chat request → routed retrieval → grounded answer
+1. Frontend sends `POST /api/chat` with the user message.
+2. The router classifies intent and picks the best path:
+   - Quran-focused questions use Quran Foundation MCP (canonical Quran data).
+   - General learning uses local Hybrid RAG (BM25 + Chroma).
+3. Results are packed into short evidence snippets with references.
+4. The local LLM synthesizes a warm, practical answer using only that evidence.
+5. The API sanitizes user-facing output (removes hidden tags) and returns the final answer.
 
-### 1. Unified RAG Retrieval
-When a query is submitted, the system performs a multi-stage retrieval:
-1.  **Semantic Retrieval**: ChromaDB (vector) searches for contextually relevant chunks using `multilingual-e5-large`.
-2.  **Keyword Retrieval**: BM25 (keyword) searches for exact matches (e.g., "Surah 17:78").
-3.  **Hybrid Reranking**: FlashRerank (Cross-Encoder) sorts the top candidates from both sources to ensure the most pinpoint accurate reference is prioritized.
+### 2) Quran-first flow (Quran Foundation MCP)
+When the user asks about Quran, surahs/ayahs, themes, tafsir, or translations:
+- The system calls MCP tools (search/fetch) and treats results as primary evidence.
+- Translation language can be user-selected (frontend passes `quran_translation_lang`).
 
-### 2. Multi-Agent Deliberation
-For complex "Scholar Consultation," the system activates a team of specialized agents:
-1.  **Coordinator (Imam Hassan)**: Routes the query to relevant specialists.
-2.  **Specialists (Sheikh Abdullah, Sheikha Aisha, etc.)**: Analyze the query and provide domain-specific evidence.
-3.  **Synthesis**: Imam Hassan consolidates the different perspectives into a final, unified response with "Museum Grade" citations.
+### 3) Local Knowledge Base flow (Hybrid RAG)
+When the user asks about general topics (fiqh basics, ethics/akhlaq, seerah, duas, etc.):
+- BM25 provides fast keyword matching for exact phrases and references.
+- Chroma provides semantic matches using `intfloat/multilingual-e5-large`.
+- Optional reranking may run if a reranker model is available (non-critical).
 
-### 3. Real-Time Scholarly Content
-The `Enhanced Islamic Tools` bridge the static knowledge base with real-time religious data:
-- **Quranic Engine**: Fetches Arabic text and translations on-the-fly.
-- **Prayer & Qibla**: Geospatial calculations via global religious APIs.
-- **Halal Checker**: Ingredient-based compliance checking from verified datasets.
+### 4) Knowledge upload → ingestion → searchable in RAG
+1. Upload a file to:
+   - `POST /api/knowledge/upload` (supports `json`, `txt`, `csv`, `pdf`)
+   - `POST /api/knowledge/upload-secure` (supports `pdf`, `txt`, `docx`, `json`, `csv`, 5MB limit)
+2. Files are saved into `backend/knowledge/data/`.
+3. The auto-ingest watcher detects new/modified files and updates the BM25 index.
+4. Full ingestion (optional) can rebuild Chroma + BM25 using the configured embeddings model.
 
-## 🏗️ Technical Stack Details
+## Technical Stack
 
-| Layer | Technology | Multi-Agent Framework |
-| :--- | :--- | :--- |
-| **Model** | Google Gemini 2.0 Flash | AgentScope v0.1.6 |
-| **Frontend** | React, Vite, Framer Motion, Tailwind CSS | UI Integration via Flask |
-| **Backend** | Python, Flask, Celery (Optional) | Multi-Agent Orchestration |
-| **Vector DB** | ChromaDB (Vector), BM25 (Keyword) | Integrated via LangChain |
-| **Embeddings** | `intfloat/multilingual-e5-large` | Semantic Understanding |
+| Layer | Technology |
+| --- | --- |
+| Frontend | React + Vite |
+| Backend API | Python + Flask |
+| Quran Data | Quran Foundation MCP (JSON-RPC over Streamable HTTP + SSE) |
+| Embeddings | `intfloat/multilingual-e5-large` |
+| Vector Store | ChromaDB (persistent) |
+| Keyword Search | BM25 (rank_bm25) |
+| Local Synthesis | llama.cpp server (OpenAI-compatible API) |
 
----
-![alt text](image-1.png)
-> [!NOTE]
-> The system is designed for high-concurrency and stateful conversations, maintaining context across multiple steps of a scholarly consultation.
+## Key Principles (Best Practices)
+- Quran-first for Quran questions (MCP is the canonical source).
+- Evidence-grounded answers (no invented narrations or verse wording).
+- Local-first inference (no external LLM APIs required).
+- Keep answers engaging: clear structure, gentle encouragement, and one short follow-up question.

@@ -7,40 +7,56 @@ This guide provides the necessary information for developers and scholars to set
 ## 🏗️ Environmental Configuration
 
 ### 1. Requirements
-- **Python 3.9+** (3.10+ recommended for optimized library compatibility).
+- **Python 3.10+** (recommended for dependency compatibility).
 - **Node.js 18+** (for Vite React frontend).
 - **Git** for version control.
 
 ### 2. Environment Variables (.env)
-The project requires several environment variables for core functionality. Create a file named `.env` in the root directory:
+Noor is designed to run in local-first mode. Do not commit secrets.
 
+Common local vars (optional):
 ```env
-GOOGLE_API_KEY=AIzaSyCfY9jM_L0m7H65GADcUmNWbSsjBDw_p_8
-# Optional: OpenAI API Key (if switching models)
-# OPENAI_API_KEY=your_openai_api_key_here
+LOCAL_LLM_BACKEND=llama_cpp_server
+LLAMA_CPP_SERVER_URL=http://localhost:8080
+LOCAL_LLM_MAX_TOKENS=700
+LOCAL_LLM_TEMPERATURE=0.4
 ```
 
 ---
 
 ## 🛠️ Local Development Setup
 
+### 0. Recommended: one command runner
+```bash
+chmod +x run.sh
+./run.sh
+```
+
 ### 1. Backend (Python/Flask)
 ```bash
-# Set up a virtual environment (MacOS/Linux)
-./setup_venv.sh
-source venv/bin/activate
+# Create and activate venv
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Start the Flask API Gateway (Port 5010)
-python3 web_api.py
+python3 backend/api/web_api.py --port 5010
+```
+
+### 1b. Local LLM (llama.cpp server)
+Noor uses an OpenAI-compatible local server (llama.cpp) for answer synthesis.
+
+Typical run:
+```bash
+llama-server -m backend/models/qwen2.5-7b-ins-v3-Q4_K_M.gguf --host 0.0.0.0 --port 8080 --ctx-size 4096
 ```
 
 ### 2. Frontend (React/Vite)
 ```bash
 # Navigate to the frontend directory
-cd islamic-ai-agent
+cd frontend
 
 # Install dependencies
 npm install
@@ -70,19 +86,25 @@ The frontend uses a custom design system centered around **"Museum Plaque"** aes
 
 ## 🧩 Modifying Agents
 
-To update the behavior or system prompts of the scholarly agents:
-1.  **Single Agent**: Modify `islamic_ai_agent.py`.
-2.  **Multi-Agent Team**: Modify `multi_agent_islamic_system.py`.
-3.  **Role System Prompts**: Look for the `SYSTEM_PROMPT` variable within each respective file to refine scholarly standards.
+Noor’s behavior is controlled primarily by routing + synthesis rules:
+1. Routing and tool selection: `backend/utils/intelligent_tool_router.py`
+2. Quran Foundation MCP integration: `backend/utils/quran_mcp_provider.py`
+3. Local LLM synthesis rules: `backend/utils/llm_provider.py`
 
 ---
 
 ## 🤝 Contribution Workflow
-1.  **Ingest New Data**: Place PDFs or TXTs in `knowledge_base/data/` and run `python3 knowledge_base/ingest_data.py`.
-2.  **Add Tools**: Extend `enhanced_islamic_tools.py` with new religious APIs or Geospatial logic.
-3.  **Refine Citations**: Update the `SOURCE_MAPPING` in `local_knowledge_tools.py` if adding new primary sources.
+1. Add knowledge files: `backend/knowledge/data/` (supports `json`, `txt`, `csv`, `pdf`)
+2. Full ingestion (Chroma + BM25): `python3 backend/knowledge/full_data_ingestion.py`
+3. For quick updates, rely on the auto-ingest watcher (BM25 updates on new files)
+4. Keep citations readable; avoid exposing internal tags in user-facing output
 
 ---
 
 > [!WARNING]
-> Always run `npm install` and `pip install -r requirements.txt` after pulling updates, as dependencies are frequently optimized for the M-series Mac architecture.
+> After pulling updates: run `pip install -r requirements.txt` and `npm install` to keep dependencies in sync.
+
+## Troubleshooting
+- `503 AGENT_INITIALIZING`: wait a moment or call `POST /api/initialize`.
+- JSON upload rejected: use `POST /api/knowledge/upload` or `POST /api/knowledge/upload-secure`.
+- RAG feels outdated after adding files: run `python3 backend/knowledge/full_data_ingestion.py`.

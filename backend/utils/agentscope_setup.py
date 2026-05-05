@@ -36,15 +36,12 @@ def create_env_file():
     env_content = """# Islamic AI Agent Environment Variables
 # Add your API keys here
 
-# OpenAI API Key (for LLM)
-OPENAI_API_KEY=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
-
-# Google Gemini API Key (fallback for OpenAI timeouts)
-GOOGLE_API_KEY=AIzaSyCfY9jM_L0m7H65GADcUmNWbSsjBDw_p_8
+# Google Gemini API Key
+GOOGLE_API_KEY=your_google_api_key_here
 
 # Alternative: Use other LLM providers
 # DASHSCOPE_API_KEY=your_dashscope_key_here
-ANTHROPIC_API_KEY=apikey_01Rj2N8SVvo6BePZj99NhmiT
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 # Prayer Times API (optional - we'll use free APIs)
 # ALADHAN_API_KEY=optional
