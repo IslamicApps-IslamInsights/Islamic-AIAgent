@@ -288,37 +288,86 @@ def home():
 @app.route('/api/health')
 def health_check():
     """Health check endpoint with RAG status"""
+    deep = (request.args.get("deep") or "").strip().lower() in {"1", "true", "yes"}
+
+    bm25_full_path = os.path.join(
+        project_root, "backend", "knowledge", "bm25_full_index.pkl"
+    )
+    bm25_path = os.path.join(project_root, "backend", "knowledge", "bm25_index.pkl")
+    chroma_sqlite_path = os.path.join(
+        project_root, "backend", "knowledge", "chroma_db_full", "chroma.sqlite3"
+    )
+
+    bm25_exists = os.path.exists(bm25_full_path) or os.path.exists(bm25_path)
+    chroma_exists = os.path.exists(chroma_sqlite_path)
+    rag_ready_basic = bool(bm25_exists or chroma_exists)
+
+    if not deep:
+        return jsonify(
+            {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "agent_initialized": agent_initialized,
+                "agents_ready": bool(agent_initialized and rag_ready_basic),
+                "rag_system": {
+                    "ready": rag_ready_basic,
+                    "bm25_index_present": bm25_exists,
+                    "chroma_sqlite_present": chroma_exists,
+                },
+                "services": {
+                    "single_agent": single_agent is not None,
+                    "multi_agent": multi_agent_system is not None,
+                },
+            }
+        )
+
     try:
         from backend.utils.enhanced_hybrid_rag import check_rag_system
+
         rag_status = check_rag_system()
+        if not isinstance(rag_status, dict):
+            rag_status = {"ready": rag_ready_basic}
     except Exception as e:
-        rag_status = {"error": str(e), "ready": False}
+        rag_status = {"error": str(e), "ready": rag_ready_basic}
 
     try:
         from backend.utils.llm_provider import get_local_llm_status
+
         local_llm = get_local_llm_status()
+        if not isinstance(local_llm, dict):
+            local_llm = {"enabled": False, "reachable": False}
     except Exception as e:
         local_llm = {"enabled": False, "reachable": False, "error": str(e)}
-    
-    # Check if system is fully ready
-    rag_ready = rag_status.get('ready', False)
-    agents_ready = agent_initialized and rag_ready
-    
-    return jsonify({
-        'status': 'healthy',
-        'agent_initialized': agent_initialized,
-        'agents_ready': agents_ready,
-        'rag_system': rag_status,
-        'local_llm': local_llm,
-        'timestamp': datetime.now().isoformat(),
-        'services': {
-            'single_agent': single_agent is not None,
-            'multi_agent': multi_agent_system is not None,
-            'dynamic_knowledge': True,
-            'rag_ready': rag_ready,
-            'local_kb_documents': rag_status.get('bm25_docs', 0) + rag_status.get('chromadb_docs', 0)
+
+    rag_ready = bool(rag_status.get("ready", False))
+    agents_ready = bool(agent_initialized and rag_ready)
+
+    def _to_int(value: Any) -> int:
+        try:
+            return int(value)
+        except Exception:
+            return 0
+
+    return jsonify(
+        {
+            "status": "healthy",
+            "agent_initialized": agent_initialized,
+            "agents_ready": agents_ready,
+            "rag_system": rag_status,
+            "local_llm": local_llm,
+            "timestamp": datetime.now().isoformat(),
+            "services": {
+                "single_agent": single_agent is not None,
+                "multi_agent": multi_agent_system is not None,
+                "dynamic_knowledge": True,
+                "rag_ready": rag_ready,
+                "local_kb_documents": (
+                    _to_int(rag_status.get("bm25_docs", 0))
+                    + _to_int(rag_status.get("chroma_docs", 0))
+                ),
+            },
         }
-    })
+    )
 
 
 @app.route('/api/quran/translation-languages')
