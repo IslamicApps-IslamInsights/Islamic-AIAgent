@@ -1,11 +1,7 @@
 {
   "version": 2,
-  "name": "noor-islamic-agent",
+  "name": "noor-islamic-agent-frontend",
   "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    },
     {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
@@ -14,14 +10,8 @@
       }
     }
   ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/frontend/$1"
-    }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
