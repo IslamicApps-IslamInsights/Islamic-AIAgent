@@ -5,7 +5,7 @@ import { BackendReadinessWrapper } from './utils/backendReadiness.jsx';
 import './index.css';
 import './App.css';
 
-function App({ isWidget = false, apiUrl = 'http://localhost:5010', themeColor = '#D4AF37' }) {
+function App({ isWidget = false, apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5010', themeColor = '#D4AF37' }) {
   return (
     <BackendReadinessWrapper apiUrl={apiUrl}>
       <div className={`App overflow-hidden ${isWidget ? 'widget-mode' : 'full-page-mode'}`}>

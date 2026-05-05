@@ -77,7 +77,9 @@ islamic-ai-agent/build/
 # Backend Data
 backend/data/topic_analytics.json
 
+# Local LLM model binaries (too large for Git/GitHub)
+backend/models/*.gguf
+
 
 # Virtual Environments
 *.nosync/
-

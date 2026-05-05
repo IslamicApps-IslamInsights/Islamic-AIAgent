@@ -12,7 +12,7 @@ import React, { useEffect, useState } from 'react';
  * Backend readiness service - handles synchronization
  */
 class BackendReadinessService {
-  constructor(apiUrl = 'http://localhost:5000') {
+  constructor(apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5010') {
     this.apiUrl = apiUrl;
     this.readinessCheckInterval = null;
     this.listeners = [];
@@ -187,7 +187,7 @@ class BackendReadinessService {
  * 
  * return ready ? <App /> : <LoadingScreen percentage={percentage} />;
  */
-function useBackendReady(apiUrl = 'http://localhost:5000') {
+function useBackendReady(apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5010') {
   const [readiness, setReadiness] = useState({
     ready: false,
     percentage: 0,
@@ -226,7 +226,7 @@ function useBackendReady(apiUrl = 'http://localhost:5000') {
  * 
  * Wraps an app component and shows loading screen until backend is ready
  */
-function BackendReadinessWrapper({ children, apiUrl = 'http://localhost:5000' }) {
+function BackendReadinessWrapper({ children, apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5010' }) {
   const readiness = useBackendReady(apiUrl);
 
   if (!readiness.ready) {

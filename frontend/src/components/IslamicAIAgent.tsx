@@ -543,7 +543,7 @@ const PlaceholderRotator = () => {
   );
 };
 
-const IslamicAIAgent = ({ isWidget = false, apiUrl = 'http://localhost:5010' }) => {
+const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5010' }) => {
   // Initialize messages from LocalStorage if available
   const [messages, setMessages] = useState<Message[]>(() => {
     const normalizeText = (value: any): string => {
@@ -1806,7 +1806,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = 'http://localhost:5010' }) 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center p-20 bg-black/80 backdrop-blur-2xl"
-            onKeyDown={(e) => e.key === 'Escape' && setIsTimelineOpen(false)}
+            onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => e.key === 'Escape' && setIsTimelineOpen(false)}
           >
             <motion.div
               initial={{ scale: 0.9, y: 40 }}

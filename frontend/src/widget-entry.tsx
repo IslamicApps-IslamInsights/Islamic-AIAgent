@@ -7,7 +7,7 @@ import './index.css';
 const initWidget = () => {
   // 1. Find the script tag that loaded us (to get data attributes)
   const scriptTag = document.currentScript || document.querySelector('script[data-api-url]');
-  const apiUrl = scriptTag?.getAttribute('data-api-url') || 'http://localhost:5010';
+  const apiUrl = scriptTag?.getAttribute('data-api-url') || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5010';
   const themeColor = scriptTag?.getAttribute('data-theme-color') || '#D4AF37';
 
   // 2. Create the container element for our widget

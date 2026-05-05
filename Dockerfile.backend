@@ -40,7 +40,7 @@ COPY --from=builder /app/islamic_config.json .
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:5010/api/health || exit 1
+    CMD sh -c 'curl -f "http://localhost:${PORT:-5010}/api/health" || exit 1'
 
 # Environment setup
 ENV PYTHONUNBUFFERED=1 \
@@ -50,12 +50,4 @@ ENV PYTHONUNBUFFERED=1 \
 EXPOSE 5010
 
 # Run backend with gunicorn
-CMD ["gunicorn", \
-     "--workers=4", \
-     "--threads=4", \
-     "--worker-class=gthread", \
-     "--bind=0.0.0.0:5010", \
-     "--timeout=120", \
-     "--access-logfile=-", \
-     "--error-logfile=-", \
-     "backend.api.web_api:app"]
+CMD ["sh", "-c", "gunicorn --workers=${WEB_CONCURRENCY:-2} --threads=${GUNICORN_THREADS:-4} --worker-class=gthread --bind=0.0.0.0:${PORT:-5010} --timeout=${GUNICORN_TIMEOUT:-180} --access-logfile=- --error-logfile=- backend.api.web_api:app"]
