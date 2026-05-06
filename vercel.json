@@ -1,17 +1,8 @@
 {
   "version": 2,
   "name": "noor-islamic-agent-frontend",
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist",
-        "installCommand": "npm ci",
-        "buildCommand": "npm run build"
-      }
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "frontend/dist",
   "rewrites": [
     {
       "source": "/(.*)",
