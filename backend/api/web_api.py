@@ -423,6 +423,67 @@ def quran_translation_languages():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/quran/verse", methods=["GET"])
+def quran_verse():
+    verse = (request.args.get("verse") or "").strip()
+    lang = (request.args.get("lang") or "en").strip().lower()
+    translator = (request.args.get("translator") or "abdel haleem").strip()
+    tafsir_flag = (request.args.get("tafsir") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+    m = re.match(r"^\s*(\d{1,3})\s*:\s*(\d{1,3})\s*$", verse)
+    if not m:
+        return jsonify({"error": "Invalid verse. Use format like 2:255"}), 400
+
+    surah = int(m.group(1))
+    ayah = int(m.group(2))
+    if surah < 1 or surah > 114 or ayah < 1:
+        return jsonify({"error": "Invalid verse range"}), 400
+
+    try:
+        from backend.utils.quran_mcp_provider import get_quran_mcp
+
+        async def _run():
+            mcp = get_quran_mcp()
+            await mcp.initialize()
+            quran_payload = await mcp.fetch_quran(
+                surah=surah, ayah=ayah, editions="ar-simple-clean"
+            )
+            trans_payload = await mcp.fetch_translation(
+                surah=surah,
+                ayah=ayah,
+                language=lang or "en",
+                translator=translator or "abdel haleem",
+            )
+            tafsir_payload = None
+            if tafsir_flag:
+                tafsir_payload = await mcp.fetch_tafsir(surah=surah, ayah=ayah)
+
+            return {
+                "quran": quran_payload,
+                "translation": trans_payload,
+                "tafsir": tafsir_payload,
+            }
+
+        data = asyncio.run(_run())
+        return jsonify(
+            {
+                "verse": f"{surah}:{ayah}",
+                "lang": lang,
+                "translator": translator,
+                "quran": data.get("quran"),
+                "translation": data.get("translation"),
+                "tafsir": data.get("tafsir"),
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
 @app.route('/api/initialize', methods=['POST'])
 def force_initialize():
     """Force agent initialization endpoint"""

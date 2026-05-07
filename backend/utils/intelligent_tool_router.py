@@ -593,9 +593,9 @@ class IntelligentToolRouter:
             from backend.utils.quran_mcp_provider import search_quran_knowledge
             
             quran_translation_lang = (kwargs.get("quran_translation_lang") or "").strip().lower()
-            include_translations = None
+            include_translations = ["en", "ur"]
             if quran_translation_lang:
-                include_translations = [quran_translation_lang]
+                include_translations = [quran_translation_lang, "en"]
 
             result = await search_quran_knowledge(
                 query,
@@ -608,22 +608,80 @@ class IntelligentToolRouter:
 
             if verses:
                 formatted_blocks = []
+                tafsir_map = result.get("tafsir") if isinstance(result, dict) else None
+                if not isinstance(tafsir_map, dict):
+                    tafsir_map = {}
+
                 for i, verse in enumerate(verses[:5], 1):
                     surah = verse.get("surah") or verse.get("chapter") or verse.get("surah_number")
                     ayah = verse.get("ayah") or verse.get("verse") or verse.get("ayah_number")
+                    ayah_key = verse.get("ayah_key") or (
+                        f"{surah}:{ayah}" if surah and ayah else None
+                    )
                     reference = f"Quran {surah}:{ayah} [Quran Foundation MCP]"
                     text = (verse.get("text") or "").strip()
                     translation = (verse.get("translation") or "").strip()
+                    translations = verse.get("translations")
                     content_parts = []
                     if text:
                         content_parts.append(text)
-                    if translation:
+                    if isinstance(translations, list) and translations:
+                        for t in translations[:2]:
+                            if not isinstance(t, dict):
+                                continue
+                            t_text = (t.get("text") or "").strip()
+                            if not t_text:
+                                continue
+                            t_lang = (t.get("lang") or "").strip().lower()
+                            label = f"Translation ({t_lang})" if t_lang else "Translation"
+                            content_parts.append(f"{label}: {t_text}")
+                    elif translation:
                         content_parts.append(f"Translation: {translation}")
+
+                    if isinstance(ayah_key, str) and ayah_key in tafsir_map:
+                        by_ed = tafsir_map.get(ayah_key)
+                        if isinstance(by_ed, dict) and by_ed:
+                            for ed_id, tafsir_text in list(by_ed.items())[:1]:
+                                t = str(tafsir_text or "").strip()
+                                if t:
+                                    content_parts.append(
+                                        f"Tafsir ({ed_id}): {t[:900]}"
+                                    )
                     content = "\n".join(content_parts).strip()
                     if content:
                         formatted_blocks.append(f"[Source {i}] {reference}")
                         formatted_blocks.append(content)
                         formatted_blocks.append("")
+
+                if len((query or "").split()) <= 3:
+                    try:
+                        from backend.utils.quran_mcp_provider import explore_quran_theme
+
+                        theme_data = await explore_quran_theme(query)
+                        theme_verses = theme_data.get("verses") if isinstance(theme_data, dict) else None
+                        if isinstance(theme_verses, list) and theme_verses:
+                            base_idx = len([x for x in formatted_blocks if isinstance(x, str) and x.startswith("[Source ")])
+                            for j, v in enumerate(theme_verses[:3], 1):
+                                if not isinstance(v, dict):
+                                    continue
+                                s2 = v.get("surah") or v.get("chapter") or v.get("surah_number")
+                                a2 = v.get("ayah") or v.get("verse") or v.get("ayah_number")
+                                t2 = (v.get("text") or "").strip()
+                                tr2 = (v.get("translation") or "").strip()
+                                if not (s2 and a2 and (t2 or tr2)):
+                                    continue
+                                ref2 = f"Related Quran {s2}:{a2} [Quran Foundation MCP]"
+                                parts2 = []
+                                if t2:
+                                    parts2.append(t2)
+                                if tr2:
+                                    parts2.append(f"Translation: {tr2}")
+                                idx = base_idx + j
+                                formatted_blocks.append(f"[Source {idx}] {ref2}")
+                                formatted_blocks.append("\n".join(parts2).strip())
+                                formatted_blocks.append("")
+                    except Exception:
+                        pass
 
                 mcp_data = "\n".join(formatted_blocks).strip()
                 

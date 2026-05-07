@@ -68,11 +68,18 @@ RUN printf '%s\n' \
   '  LLAMA_VER="${LLAMA_CPP_VERSION:-b9025}"' \
   '  if ! command -v llama-server >/dev/null 2>&1; then' \
   '    echo "Installing llama-server (${LLAMA_VER})..."' \
+  '    set +e' \
   '    curl -L --fail -o /tmp/llama.tar.gz "https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_VER}/llama-${LLAMA_VER}-bin-ubuntu-x64.tar.gz"' \
   '    tar -xzf /tmp/llama.tar.gz -C /tmp' \
-  '    cp "/tmp/llama-${LLAMA_VER}-bin-ubuntu-x64/llama-server" /usr/local/bin/llama-server' \
-  '    chmod +x /usr/local/bin/llama-server' \
-  '    rm -rf /tmp/llama.tar.gz "/tmp/llama-${LLAMA_VER}-bin-ubuntu-x64"' \
+  '    cp "/tmp/llama-${LLAMA_VER}/llama-server" /usr/local/bin/llama-server' \
+  '    rc=$?' \
+  '    if [ $rc -ne 0 ]; then' \
+  '      echo "llama-server install failed (rc=$rc). Continuing without local LLM."' \
+  '    else' \
+  '      chmod +x /usr/local/bin/llama-server' \
+  '    fi' \
+  '    rm -rf /tmp/llama.tar.gz "/tmp/llama-${LLAMA_VER}" >/dev/null 2>&1' \
+  '    set -e' \
   '  fi' \
   '' \
   '  MODEL_PATH="${LOCAL_LLM_MODEL_PATH:-/app/backend/models/local-model.gguf}"' \

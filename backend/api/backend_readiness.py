@@ -11,8 +11,7 @@ import time
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
-from threading import Lock, Thread
-import json
+from threading import Lock
 
 logger = logging.getLogger("BackendReadiness")
 
@@ -33,20 +32,43 @@ class BackendReadinessManager:
         self.initialization_complete = False
         self._lock = Lock()
     
-    def mark_component_ready(self, component: str, success: bool = True, error: str = None):
+    def mark_component_ready(
+        self,
+        component: str,
+        success: bool = True,
+        error: str = None,
+    ):
         """Mark a component as ready or failed"""
         with self._lock:
             if component in self.components_status:
                 self.components_status[component]['ready'] = success
-                self.components_status[component]['timestamp'] = datetime.now().isoformat()
+                self.components_status[component][
+                    "timestamp"
+                ] = datetime.now().isoformat()
                 if error:
                     self.components_status[component]['error'] = error
                 
-                logger.info(f"{'✅' if success else '❌'} Component '{component}': {'ready' if success else 'failed'}")
+                icon = "✅" if success else "❌"
+                state = "ready" if success else "failed"
+                logger.info(f"{icon} Component '{component}': {state}")
     
     def check_core_ready(self) -> bool:
         """Check if core (critical) components are ready"""
-        critical = ['rag_loader', 'single_agent']
+        running_on_railway = any(
+            os.environ.get(k)
+            for k in (
+                "RAILWAY_PROJECT_ID",
+                "RAILWAY_SERVICE_ID",
+                "RAILWAY_ENVIRONMENT",
+                "RAILWAY_PUBLIC_DOMAIN",
+                "RAILWAY_STATIC_URL",
+            )
+        )
+        critical = (
+            ["single_agent"]
+            if running_on_railway
+            else ["rag_loader", "single_agent"]
+        )
         return all(
             self.components_status[comp]['ready'] 
             for comp in critical
@@ -61,7 +83,9 @@ class BackendReadinessManager:
         with self._lock:
             self.initialization_complete = True
             self.fully_ready = self.check_fully_ready()
-            logger.info(f"🎉 Initialization complete. Fully ready: {self.fully_ready}")
+            logger.info(
+                f"🎉 Initialization complete. Fully ready: {self.fully_ready}"
+            )
     
     def get_status(self) -> Dict[str, Any]:
         """Get complete readiness status"""
@@ -123,7 +147,11 @@ def get_readiness_manager() -> BackendReadinessManager:
     return _readiness_manager
 
 
-def mark_component_ready(component: str, success: bool = True, error: str = None):
+def mark_component_ready(
+    component: str,
+    success: bool = True,
+    error: str = None,
+):
     """Convenience function to mark component ready"""
     manager = get_readiness_manager()
     manager.mark_component_ready(component, success, error)

@@ -706,15 +706,46 @@ class QuranFoundationMCP:
 
         verses = _normalize_mcp_verses(quran_search)
         normalized_verses: List[Dict[str, Any]] = []
+        preferred_langs = [
+            str(x).strip().lower() for x in (include_translations or []) if str(x).strip()
+        ]
         for v in verses[:8]:
             surah = v.get("surah")
             ayah = v.get("ayah")
             text = (v.get("text") or "").strip()
             translation_text = ""
+            translation_items: List[Dict[str, Any]] = []
             translations = v.get("translations")
             if isinstance(translations, list) and translations:
-                t0 = translations[0] if isinstance(translations[0], dict) else {}
-                translation_text = _strip_html((t0 or {}).get("text") or "")
+                for t in translations[:5]:
+                    if not isinstance(t, dict):
+                        continue
+                    t_text = _strip_html((t.get("text") or "").strip())
+                    if not t_text:
+                        continue
+                    t_lang = (
+                        (t.get("lang") or t.get("language") or t.get("edition_lang") or "")
+                    )
+                    t_lang = str(t_lang).strip().lower()
+                    t_id = (t.get("edition_id") or t.get("edition") or t.get("code") or "")
+                    t_name = (t.get("name") or t.get("translator") or t.get("author") or "")
+                    translation_items.append(
+                        {
+                            "lang": t_lang,
+                            "edition": str(t_id).strip(),
+                            "name": str(t_name).strip(),
+                            "text": t_text,
+                        }
+                    )
+
+                if translation_items:
+                    if preferred_langs:
+                        for item in translation_items:
+                            if item.get("lang") in preferred_langs:
+                                translation_text = item.get("text") or ""
+                                break
+                    if not translation_text:
+                        translation_text = translation_items[0].get("text") or ""
             normalized_verses.append(
                 {
                     "surah": surah,
@@ -722,6 +753,7 @@ class QuranFoundationMCP:
                     "ayah_key": v.get("ayah_key") or (f"{surah}:{ayah}" if surah and ayah else None),
                     "text": text,
                     "translation": translation_text,
+                    "translations": translation_items,
                     "url": v.get("url"),
                 }
             )
@@ -737,7 +769,7 @@ class QuranFoundationMCP:
             if not tafsir_editions:
                 tafsir_editions = ["ar-ibn-kathir", "ar-saadi"]
 
-            for v in normalized_verses[:2]:
+            for v in normalized_verses[:3]:
                 ak = v.get("ayah_key")
                 if not isinstance(ak, str) or ":" not in ak:
                     continue
