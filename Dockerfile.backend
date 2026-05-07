@@ -42,10 +42,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/backend ./backend
 COPY --from=builder /app/islamic_config.json .
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD sh -c 'curl -f "http://localhost:${PORT:-5010}/api/health" || exit 1'
-
 # Environment setup
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -56,6 +52,14 @@ EXPOSE 5010
 RUN printf '%s\n' \
   '#!/bin/sh' \
   'set -e' \
+  '' \
+  'PORT_TO_USE="${PORT:-}"' \
+  'case "$PORT_TO_USE" in' \
+  "  ''|*[!0-9]*)" \
+  '    echo "Invalid PORT=$PORT_TO_USE. Remove any custom PORT variable in Railway. Falling back to 8080."' \
+  '    PORT_TO_USE="8080"' \
+  '    ;;' \
+  'esac' \
   '' \
   'if [ "${ENABLE_LOCAL_LLM:-0}" = "1" ]; then' \
   '  export LOCAL_LLM_BACKEND=llama_cpp_server' \
@@ -88,7 +92,7 @@ RUN printf '%s\n' \
   '  fi' \
   'fi' \
   '' \
-  'exec gunicorn --workers="${WEB_CONCURRENCY:-1}" --threads="${GUNICORN_THREADS:-2}" --worker-class=gthread --bind="0.0.0.0:${PORT:-5010}" --timeout="${GUNICORN_TIMEOUT:-180}" --access-logfile=- --error-logfile=- backend.api.web_api:app' \
+  'exec gunicorn --workers="${WEB_CONCURRENCY:-1}" --threads="${GUNICORN_THREADS:-2}" --worker-class=gthread --bind="0.0.0.0:${PORT_TO_USE}" --timeout="${GUNICORN_TIMEOUT:-180}" --access-logfile=- --error-logfile=- backend.api.web_api:app' \
   > /usr/local/bin/start-backend.sh \
   && chmod +x /usr/local/bin/start-backend.sh
 
