@@ -17,15 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Install llama.cpp server (optional local LLM runtime)
-# Prebuilt binaries provided by llama.cpp releases for Ubuntu x64 (CPU)
-ARG LLAMA_CPP_VERSION=b9025
-RUN curl -L --fail -o /tmp/llama.tar.gz "https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_CPP_VERSION}/llama-${LLAMA_CPP_VERSION}-bin-ubuntu-x64.tar.gz" \
-    && tar -xzf /tmp/llama.tar.gz -C /tmp \
-    && cp "/tmp/llama-${LLAMA_CPP_VERSION}-bin-ubuntu-x64/llama-server" /usr/local/bin/llama-server \
-    && chmod +x /usr/local/bin/llama-server \
-    && rm -rf /tmp/llama.tar.gz "/tmp/llama-${LLAMA_CPP_VERSION}-bin-ubuntu-x64"
-
 # Copy source code
 COPY backend ./backend
 COPY islamic_config.json .
@@ -40,6 +31,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
+    tar \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python environment from builder
@@ -60,5 +52,45 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 5010
 
+# Entrypoint script (keeps CMD simple and avoids quoting issues)
+RUN printf '%s\n' \
+  '#!/bin/sh' \
+  'set -e' \
+  '' \
+  'if [ "${ENABLE_LOCAL_LLM:-0}" = "1" ]; then' \
+  '  export LOCAL_LLM_BACKEND=llama_cpp_server' \
+  '  export LLAMA_CPP_SERVER_URL="${LLAMA_CPP_SERVER_URL:-http://127.0.0.1:8080}"' \
+  '' \
+  '  LLAMA_VER="${LLAMA_CPP_VERSION:-b9025}"' \
+  '  if ! command -v llama-server >/dev/null 2>&1; then' \
+  '    echo "Installing llama-server (${LLAMA_VER})..."' \
+  '    curl -L --fail -o /tmp/llama.tar.gz "https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_VER}/llama-${LLAMA_VER}-bin-ubuntu-x64.tar.gz"' \
+  '    tar -xzf /tmp/llama.tar.gz -C /tmp' \
+  '    cp "/tmp/llama-${LLAMA_VER}-bin-ubuntu-x64/llama-server" /usr/local/bin/llama-server' \
+  '    chmod +x /usr/local/bin/llama-server' \
+  '    rm -rf /tmp/llama.tar.gz "/tmp/llama-${LLAMA_VER}-bin-ubuntu-x64"' \
+  '  fi' \
+  '' \
+  '  MODEL_PATH="${LOCAL_LLM_MODEL_PATH:-/app/backend/models/local-model.gguf}"' \
+  '  MODEL_URL="${LOCAL_LLM_MODEL_URL:-}"' \
+  '  mkdir -p "$(dirname "$MODEL_PATH")"' \
+  '  if [ ! -f "$MODEL_PATH" ] && [ -n "$MODEL_URL" ]; then' \
+  '    echo "Downloading local LLM model... (this can be large)"' \
+  '    curl -L --fail --retry 5 --retry-delay 2 -o "$MODEL_PATH.part" "$MODEL_URL"' \
+  '    mv "$MODEL_PATH.part" "$MODEL_PATH"' \
+  '  fi' \
+  '' \
+  '  if command -v llama-server >/dev/null 2>&1 && [ -f "$MODEL_PATH" ]; then' \
+  '    echo "Starting llama-server..."' \
+  '    llama-server -m "$MODEL_PATH" --host 127.0.0.1 --port "${LLM_PORT:-8080}" -c "${LOCAL_LLM_CTX:-2048}" -t "${LOCAL_LLM_THREADS:-2}" >/dev/null 2>&1 &' \
+  '  else' \
+  '    echo "Local LLM not started (missing llama-server or model)."' \
+  '  fi' \
+  'fi' \
+  '' \
+  'exec gunicorn --workers="${WEB_CONCURRENCY:-1}" --threads="${GUNICORN_THREADS:-2}" --worker-class=gthread --bind="0.0.0.0:${PORT:-5010}" --timeout="${GUNICORN_TIMEOUT:-180}" --access-logfile=- --error-logfile=- backend.api.web_api:app' \
+  > /usr/local/bin/start-backend.sh \
+  && chmod +x /usr/local/bin/start-backend.sh
+
 # Run backend with gunicorn
-CMD ["sh", "-c", "if [ \"${ENABLE_LOCAL_LLM:-0}\" = \"1\" ]; then export LOCAL_LLM_BACKEND=llama_cpp_server; export LLAMA_CPP_SERVER_URL=${LLAMA_CPP_SERVER_URL:-http://127.0.0.1:8080}; ( MODEL_PATH=${LOCAL_LLM_MODEL_PATH:-/app/backend/models/local-model.gguf}; MODEL_URL=${LOCAL_LLM_MODEL_URL:-}; mkdir -p \"$(dirname \"$MODEL_PATH\")\"; if [ ! -f \"$MODEL_PATH\" ] && [ -n \"$MODEL_URL\" ]; then echo \"Downloading local LLM model...\"; curl -L --fail --retry 5 --retry-delay 2 -o \"$MODEL_PATH.part\" \"$MODEL_URL\" && mv \"$MODEL_PATH.part\" \"$MODEL_PATH\"; fi; if [ -f \"$MODEL_PATH\" ]; then echo \"Starting llama-server...\"; llama-server -m \"$MODEL_PATH\" --host 127.0.0.1 --port ${LLM_PORT:-8080} -c ${LOCAL_LLM_CTX:-4096} -t ${LOCAL_LLM_THREADS:-2} >/dev/null 2>&1; else echo \"Local LLM model not found (set LOCAL_LLM_MODEL_URL).\"; fi ) & fi; gunicorn --workers=${WEB_CONCURRENCY:-2} --threads=${GUNICORN_THREADS:-4} --worker-class=gthread --bind=0.0.0.0:${PORT:-5010} --timeout=${GUNICORN_TIMEOUT:-180} --access-logfile=- --error-logfile=- backend.api.web_api:app"]
+CMD ["/usr/local/bin/start-backend.sh"]

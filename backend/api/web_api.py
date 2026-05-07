@@ -15,39 +15,38 @@ PROCESSING PIPELINE:
   Query → Classification → Local KB Search → Local Synthesis → Response
   
 AUTHENTICATION:
-  All sources: Quran, Sahih Hadith collections, Tafsir Ibn Kathir, Islamic scholarship
+  All sources: Quran, Sahih Hadith collections, Tafsir Ibn Kathir, Islamic
+  scholarship
   No external APIs required for inference - everything runs locally
   
-Dependencies: Flask, CORS, Transformers (sentence-embeddings), Chroma (vector DB)
+Dependencies: Flask, CORS, Transformers (sentence-embeddings), Chroma (vector
+DB)
 """
 
-# 🛡️ Hardening: Prevent semaphore leaks on macOS (Tokenizers parallelism)
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-import time
-start_all = time.time()
-
-# Ensure the project root is in the search path for modularized imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-from flask import Flask, request, jsonify, render_template, abort
-from flask_cors import CORS
-from werkzeug.utils import secure_filename
 import asyncio
+import time
 import json
 import re
 from datetime import datetime
 import threading
-import queue
 from functools import wraps
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import argparse
-import os
 from pathlib import Path
 import logging
-import time
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+start_all = time.time()
+
+project_root = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..")
+)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 # Configure logging
 logging.basicConfig(
@@ -280,6 +279,26 @@ def initialize_agents():
         single_agent = None
         multi_agent_system = None
 
+
+_auto_init_started = False
+_auto_init_lock = threading.Lock()
+
+
+def _start_init_in_background():
+    global _auto_init_started
+    flag = (os.environ.get("BACKEND_AUTO_INIT") or "1").strip().lower()
+    if flag not in {"1", "true", "yes"}:
+        return False
+
+    with _auto_init_lock:
+        if _auto_init_started:
+            return True
+        _auto_init_started = True
+
+    t = threading.Thread(target=initialize_agents, daemon=True)
+    t.start()
+    return True
+
 @app.route('/')
 def home():
     """Serve the main UI page"""
@@ -407,18 +426,18 @@ def quran_translation_languages():
 @app.route('/api/initialize', methods=['POST'])
 def force_initialize():
     """Force agent initialization endpoint"""
-    global agent_initialized
     try:
-        print("🔄 Force initializing Quran Foundation powered agents...")
-        initialize_agents()
-        
-        return jsonify({
-            'status': 'success',
-            'agent_initialized': agent_initialized,
-            'message': 'Quran-powered agents initialized successfully' if agent_initialized else 'Agent initialization failed',
-            'timestamp': datetime.now().isoformat(),
-            'source': 'Quran Foundation MCP'
-        })
+        started = _start_init_in_background()
+        return (
+            jsonify(
+                {
+                    "status": "starting" if started else "disabled",
+                    "started": bool(started),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ),
+            202 if started else 409,
+        )
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -1797,6 +1816,7 @@ def system_status():
 def readiness_status():
     """Get backend readiness status for frontend synchronization"""
     try:
+        _start_init_in_background()
         from backend.api.backend_readiness import get_readiness_status
         
         status = get_readiness_status()
