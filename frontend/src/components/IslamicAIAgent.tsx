@@ -38,7 +38,7 @@ const cn = (...inputs: ClassValue[]) => {
 const detectScript = (text: string) => {
   const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
   const urduRegex = /[\u0600-\u06FF]/; // Urdu shares most characters but often uses specific fonts
-  
+
   if (arabicRegex.test(text)) {
     // Check for Urdu specific characters if needed, but for now we'll prioritize Amiri for standard Arabic
     return 'arabic';
@@ -105,7 +105,7 @@ const SanctuaryGreeting = ({ onSuggestionClick }: { onSuggestionClick: (query: s
         <p className="text-white/90 text-2xl font-medium leading-relaxed tracking-tight font-outfit">
           As-Salaam Alaykum. I am <span className="text-gold-primary font-black">Noor</span>, your scholarly portal to authentic Islamic knowledge.
         </p>
-        
+
         {/* Interactive Suggestion Chips */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 pb-12">
           {SUGGESTIONS.slice(0, 8).map((s, i) => (
@@ -151,12 +151,12 @@ const SidebarCard = ({ title, desc, icon: Icon, onClick }: { title: string, desc
 
 const SanctuaryBackground = ({ isActive }: { isActive: boolean }) => (
   <div className={cn("absolute inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-[3000ms]", isActive ? "opacity-100" : "opacity-0")}>
-     <div className="absolute inset-0 bg-gradient-to-br from-[#011412] via-black to-[#011d1a]" />
-     <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gold-primary/10 blur-[150px] rounded-full animate-pulse-slow" />
-     <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-gold-primary/5 blur-[200px] rounded-full animate-pulse-slow delay-1000" />
-     <div className="absolute inset-0 opacity-[0.03] flex items-center justify-center">
-        <NoorLogo size={800} className="scale-150 rotate-45 animate-spin-slow duration-[300s]" />
-     </div>
+    <div className="absolute inset-0 bg-gradient-to-br from-[#011412] via-black to-[#011d1a]" />
+    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gold-primary/10 blur-[150px] rounded-full animate-pulse-slow" />
+    <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-gold-primary/5 blur-[200px] rounded-full animate-pulse-slow delay-1000" />
+    <div className="absolute inset-0 opacity-[0.03] flex items-center justify-center">
+      <NoorLogo size={800} className="scale-150 rotate-45 animate-spin-slow duration-[300s]" />
+    </div>
   </div>
 );
 
@@ -179,7 +179,35 @@ const ScholarlySkeleton = ({ height = 100 }: { height?: number }) => (
 const ScholarEvidence = ({ type, translation, reference, apiUrl, onSelectReference }: { type: 'quran' | 'hadith', translation: string, reference: string, apiUrl: string, onSelectReference: (ref: string) => void }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [dynamicText, setDynamicText] = useState<string | null>(null);
+  const [dynamicArabic, setDynamicArabic] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Clean translation of bolding
+  const displayTranslation = (dynamicText || translation || "").replace(/\*\*/g, "").trim();
+
+  useEffect(() => {
+    const fetchFullVerse = async () => {
+      if (type === 'quran' && (!translation || translation.length < 5)) {
+        setLoading(true);
+        try {
+          const res = await fetch(`${apiUrl}/api/quran/verse`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ verse: reference })
+          });
+          const data = await res.json();
+          if (data.status === 'success') {
+            setDynamicText(data.translation);
+            setDynamicArabic(data.text);
+          }
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+      }
+    };
+    fetchFullVerse();
+  }, [reference, translation, type, apiUrl]);
 
   const toggleAudio = async () => {
     if (isPlaying) {
@@ -194,8 +222,7 @@ const ScholarEvidence = ({ type, translation, reference, apiUrl, onSelectReferen
       return;
     }
 
-    // Extract verse reference like "2:255" from "Quran 2:255"
-    const versePart = reference.replace(/Quran\s+/i, "").trim();
+    const versePart = reference.match(/(\d+:\d+)/)?.[1] || reference.replace(/Quran\s+/i, "").trim();
     try {
       const res = await fetch(`${apiUrl}/api/quran/audio`, {
         method: 'POST',
@@ -218,75 +245,89 @@ const ScholarEvidence = ({ type, translation, reference, apiUrl, onSelectReferen
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="evidence-box group border-gold-primary/40 mt-12 mb-8 bg-black/40 rounded-[3rem] overflow-hidden border shadow-[0_40px_80px_rgba(0,0,0,0.4)]"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="evidence-box group border-gold-primary/30 mt-12 mb-8 bg-gradient-to-br from-black/60 to-[#011412]/80 rounded-[2.5rem] overflow-hidden border shadow-[0_30px_60px_rgba(0,0,0,0.5)] premium-card-shadow backdrop-blur-md"
     >
-      <div className="py-7 px-14 bg-gold-primary/[0.08] border-b border-gold-primary/20 flex justify-between items-center">
-        <div className="flex items-center gap-6">
-          <div className="w-10 h-10 rounded-xl bg-gold-primary/20 flex items-center justify-center border border-gold-primary/30">
-            <Star size={18} className="text-gold-primary animate-pulse" fill="currentColor" />
+      <div className="py-6 px-10 bg-gold-primary/[0.05] border-b border-gold-primary/20 flex justify-between items-center">
+        <div className="flex items-center gap-5">
+          <div className="w-10 h-10 rounded-xl bg-gold-primary/10 flex items-center justify-center border border-gold-primary/20">
+            <Star size={16} className="text-gold-primary animate-pulse" fill="currentColor" />
           </div>
-          <span className="text-[14px] font-black text-gold-primary uppercase tracking-[0.6em] font-outfit">
-            {type === 'quran' ? 'Primary Divine Revelation' : 'Prophetic Scholarly Authority'}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-black text-gold-primary uppercase tracking-[0.4em] font-outfit">
+              {type === 'quran' ? 'Divine Revelation' : 'Prophetic Authority'}
+            </span>
+            <span className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
+              Authenticated Evidence
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {type === 'quran' && (
             <button
               onClick={toggleAudio}
               className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-full border transition-all font-outfit text-[11px] font-black uppercase tracking-widest",
-                isPlaying 
-                  ? "bg-gold-primary text-black border-gold-primary shadow-[0_0_20px_rgba(229,192,111,0.5)]" 
+                "flex items-center gap-2 px-5 py-2.5 rounded-full border transition-all font-outfit text-[10px] font-black uppercase tracking-widest",
+                isPlaying
+                  ? "bg-gold-primary text-black border-gold-primary shadow-[0_0_20px_rgba(229,192,111,0.4)]"
                   : "bg-white/5 text-white/40 border-white/10 hover:border-gold-primary/40 hover:text-gold-primary"
               )}
             >
-              {isPlaying ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-              {isPlaying ? 'Reciting...' : 'Listen to Verse'}
+              {isPlaying ? <Pause size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
+              {isPlaying ? 'Reciting' : 'Listen'}
             </button>
           )}
-            <div className="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-full border border-white/10 group/ref relative">
-            <button 
+          <div className="flex items-center gap-3 bg-white/5 px-5 py-2.5 rounded-full border border-white/10 group/ref relative">
+            <button
               onClick={() => onSelectReference(reference)}
-              className="text-[12px] font-black text-white/40 tracking-[0.2em] font-inter hover:text-gold-primary transition-colors flex items-center gap-2"
+              className="text-[11px] font-black text-white/40 tracking-wider font-inter hover:text-gold-primary transition-colors flex items-center gap-2"
             >
-              [{reference}]
-              <Scroll size={12} className="opacity-0 group-hover/ref:opacity-100 transition-opacity" />
-            </button>
-            <button 
-              onClick={() => navigator.clipboard.writeText(reference)}
-              className="ml-2 p-1 text-white/10 hover:text-gold-primary transition-colors"
-              title="Copy Reference"
-            >
-              <Copy size={12} />
+              {reference}
+              <Scroll size={10} className="opacity-0 group-hover/ref:opacity-100 transition-opacity" />
             </button>
           </div>
         </div>
       </div>
-      <div className="p-16 relative overflow-hidden">
+      <div className="p-12 relative overflow-hidden">
         {/* Subtle Geometric Watermark */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none flex items-center justify-center">
-          <NoorLogo size={400} className="scale-150 rotate-12" />
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center">
+          <NoorLogo size={350} className="scale-125 rotate-12" />
         </div>
-        <div className="relative z-10 text-[24px] text-white/95 font-medium leading-[2.4] italic border-l-[6px] border-gold-primary/50 pl-14 font-outfit antialiased">
-          "{translation}"
-        </div>
+
+        {loading ? (
+          <div className="flex flex-col gap-4 py-4">
+            <div className="h-8 bg-white/5 animate-pulse rounded-xl w-full" />
+            <div className="h-4 bg-white/5 animate-pulse rounded-xl w-3/4" />
+          </div>
+        ) : (
+          <div className="space-y-8 relative z-10">
+            {dynamicArabic && (
+              <div dir="rtl" className="text-right arabic-text text-4xl text-gold-primary leading-loose pb-8 border-b border-white/5">
+                {dynamicArabic}
+              </div>
+            )}
+            <div className="text-[22px] text-white/90 font-medium leading-[2.2] italic border-l-4 border-gold-primary/40 pl-10 font-outfit antialiased">
+              "{displayTranslation || "Divine wisdom is being fetched..."}"
+            </div>
+          </div>
+        )}
+
         {/* Simple Audio Wave Visualizer */}
         <AnimatePresence>
           {isPlaying && (
-            <motion.div 
+            <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 4, opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="absolute bottom-0 left-0 right-0 overflow-hidden flex items-end gap-[2px] px-10"
+              className="absolute bottom-0 left-0 right-0 overflow-hidden flex items-end gap-[1px] px-8"
             >
-              {[...Array(60)].map((_, i) => (
+              {[...Array(80)].map((_, i) => (
                 <motion.div
                   key={i}
-                  animate={{ height: [4, Math.random() * 20 + 4, 4] }}
-                  transition={{ repeat: Infinity, duration: 0.5 + Math.random(), ease: "easeInOut" }}
-                  className="flex-1 bg-gold-primary/40 rounded-t-full"
+                  animate={{ height: [2, Math.random() * 15 + 2, 2] }}
+                  transition={{ repeat: Infinity, duration: 0.4 + Math.random(), ease: "easeInOut" }}
+                  className="flex-1 bg-gold-primary/30 rounded-t-full"
                 />
               ))}
             </motion.div>
@@ -318,7 +359,7 @@ const IsnadChain = ({ reference, apiUrl, onClose }: { reference: string, apiUrl:
   }, [reference]);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
@@ -334,18 +375,18 @@ const IsnadChain = ({ reference, apiUrl, onClose }: { reference: string, apiUrl:
             <X size={24} />
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto no-scrollbar p-16 space-y-0 relative">
           {/* Timeline Line */}
           <div className="absolute left-24 top-24 bottom-24 w-[2px] bg-gradient-to-b from-gold-primary/40 via-gold-primary/10 to-transparent shadow-[0_0_10px_rgba(229,192,111,0.2)]" />
-          
+
           {loading ? (
-             <div className="flex flex-col items-center justify-center h-64 space-y-6">
-                <div className="w-12 h-12 border-4 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin" />
-                <span className="text-gold-primary/40 text-[11px] font-black uppercase tracking-widest">Verifying Chains...</span>
-             </div>
+            <div className="flex flex-col items-center justify-center h-64 space-y-6">
+              <div className="w-12 h-12 border-4 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin" />
+              <span className="text-gold-primary/40 text-[11px] font-black uppercase tracking-widest">Verifying Chains...</span>
+            </div>
           ) : chain.map((narrator, i) => (
-            <motion.div 
+            <motion.div
               key={i}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -354,7 +395,7 @@ const IsnadChain = ({ reference, apiUrl, onClose }: { reference: string, apiUrl:
             >
               {/* Dot */}
               <div className="absolute left-[89px] top-2 w-4 h-4 rounded-full bg-[#011412] border-2 border-gold-primary group-hover:scale-150 transition-transform shadow-[0_0_10px_rgba(229,192,111,0.5)] z-10" />
-              
+
               <div className="bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] group-hover:border-gold-primary/30 transition-all">
                 <div className="flex justify-between items-start">
                   <div>
@@ -370,7 +411,7 @@ const IsnadChain = ({ reference, apiUrl, onClose }: { reference: string, apiUrl:
             </motion.div>
           ))}
         </div>
-        
+
         <div className="p-10 bg-gold-primary/[0.05] text-center border-t border-white/5">
           <p className="text-gold-primary/30 text-[10px] font-black uppercase tracking-[0.4em]">Integrated authentication from primary scholarly databases</p>
         </div>
@@ -381,13 +422,13 @@ const IsnadChain = ({ reference, apiUrl, onClose }: { reference: string, apiUrl:
 
 const ScholarDeepDive = ({ msg, renderContent, onClose }: { msg: Message, renderContent: (m: Message, full?: boolean) => any, onClose: () => void }) => {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[150] flex items-center justify-center p-20 bg-black/80 backdrop-blur-[100px]"
     >
-      <motion.div 
+      <motion.div
         initial={{ y: 50, scale: 0.95 }}
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 50, scale: 0.95 }}
@@ -403,29 +444,29 @@ const ScholarDeepDive = ({ msg, renderContent, onClose }: { msg: Message, render
               <span className="text-[11px] font-bold text-gold-primary/60 uppercase tracking-[0.4em] mt-1">Full Authenticated Knowledge Scroll</span>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="w-16 h-16 rounded-full flex items-center justify-center bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
           >
             <X size={28} />
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto no-scrollbar px-32 py-24 bg-gradient-to-b from-transparent to-black/20">
-           <div className="max-w-5xl mx-auto">
-              <div className="mb-20 flex items-center gap-6 opacity-40">
-                <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent to-gold-primary/30" />
-                <span className="text-[12px] font-black uppercase tracking-[0.6em]">Beginning of Scholarly Consensus</span>
-                <div className="h-[2px] flex-1 bg-gradient-to-l from-transparent to-gold-primary/30" />
-              </div>
-              
-              {renderContent(msg, true)}
-              
-              <div className="mt-40 border-t border-gold-primary/10 pt-16 flex flex-col items-center text-center opacity-40 italic">
-                 <p className="text-[14px] text-white/60">This scholarly scroll has been synthesized with verified sources from the Quran, authentic Hadith chains (Isnad), and classical Fiqh consensus.</p>
-                 <span className="text-[11px] uppercase tracking-[0.8em] mt-6">Knowledge is Light</span>
-              </div>
-           </div>
+          <div className="max-w-5xl mx-auto">
+            <div className="mb-20 flex items-center gap-6 opacity-40">
+              <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent to-gold-primary/30" />
+              <span className="text-[12px] font-black uppercase tracking-[0.6em]">Beginning of Scholarly Consensus</span>
+              <div className="h-[2px] flex-1 bg-gradient-to-l from-transparent to-gold-primary/30" />
+            </div>
+
+            {renderContent(msg, true)}
+
+            <div className="mt-40 border-t border-gold-primary/10 pt-16 flex flex-col items-center text-center opacity-40 italic">
+              <p className="text-[14px] text-white/60">This scholarly scroll has been synthesized with verified sources from the Quran, authentic Hadith chains (Isnad), and classical Fiqh consensus.</p>
+              <span className="text-[11px] uppercase tracking-[0.8em] mt-6">Knowledge is Light</span>
+            </div>
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -456,13 +497,13 @@ const QiblaCompass = ({ bearing, direction }: { bearing: number, direction: stri
     <div className="relative w-32 h-32 flex items-center justify-center">
       {/* Outer Glow & Atmosphere */}
       <div className="absolute inset-[-10%] bg-gold-primary/5 blur-2xl rounded-full animate-pulse-slow" />
-      
+
       {/* Compass Face */}
       <div className="absolute inset-0 rounded-full border border-white/10 bg-black/40 shadow-inner overflow-hidden">
         {/* Degree Markers (30 degree steps) */}
         {[...Array(12)].map((_, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className="absolute inset-0 flex flex-col items-center pt-1"
             style={{ transform: `rotate(${i * 30}deg)` }}
           >
@@ -477,7 +518,7 @@ const QiblaCompass = ({ bearing, direction }: { bearing: number, direction: stri
       </div>
 
       {/* Rotating High-Fidelity Needle Layer */}
-      <motion.div 
+      <motion.div
         animate={{ rotate: bearing }}
         transition={{ type: "spring", stiffness: 40, damping: 15 }}
         className="absolute inset-0 z-10 flex items-center justify-center"
@@ -488,19 +529,19 @@ const QiblaCompass = ({ bearing, direction }: { bearing: number, direction: stri
           <div className="absolute top-[10%] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[40px] border-b-gold-primary filter drop-shadow-[0_0_8px_rgba(229,192,111,0.5)]" />
           {/* Bottom Pointer (Darker) */}
           <div className="absolute bottom-[10%] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[40px] border-t-white/10" />
-          
+
           {/* Center Point */}
           <div className="w-3 h-3 rounded-full bg-gold-primary border-2 border-[#011412] z-20 shadow-[0_0_10px_rgba(229,192,111,0.8)]" />
-          
+
           {/* Target Kaaba Icon */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             className="absolute top-[2%] bg-black border border-gold-primary/40 p-1 rounded-sm shadow-xl"
             title="Holy Kaaba Direction"
           >
             <div className="w-3 h-3 bg-black border-[0.5px] border-gold-primary/30 relative">
-               <div className="absolute top-0 left-0 right-0 h-[1px] bg-gold-primary/60" />
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gold-primary/60" />
             </div>
           </motion.div>
         </div>
@@ -564,11 +605,11 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-            return parsed.map((m: any) => ({
-              ...m,
-              text: normalizeText(m?.text),
-              timestamp: new Date(m.timestamp)
-            }));
+          return parsed.map((m: any) => ({
+            ...m,
+            text: normalizeText(m?.text),
+            timestamp: new Date(m.timestamp)
+          }));
         }
       } catch (e) { console.error("History revival failed", e); }
     }
@@ -585,7 +626,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
   // Persist messages whenever they change
   useEffect(() => {
     if (messages) {
-        localStorage.setItem('noor_scholar_history', JSON.stringify(messages));
+      localStorage.setItem('noor_scholar_history', JSON.stringify(messages));
     }
   }, [messages]);
   const [inputMessage, setInputMessage] = useState('');
@@ -600,7 +641,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isSystemInitializing, setIsSystemInitializing] = useState(true);
   const [initializationRetry, setInitializationRetry] = useState(0);
-  
+
   // Real-time Islamic Data State
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [prayerTimes, setPrayerTimes] = useState<any>(null);
@@ -614,7 +655,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
   const [expandedMessages, setExpandedMessages] = useState<Record<number, boolean>>({});
   const [pageState, setPageState] = useState<Record<number, number>>({}); // blocks shown per message
   const [scholarlyStatus, setScholarlyStatus] = useState("Consulting Scholarly Consensus...");
-  
+
   // Sanctuary & Atmosphere State
   const [isAmbiencePlaying, setIsAmbiencePlaying] = useState(false);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -682,7 +723,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
       ambientAudioRef.current.loop = true;
       ambientAudioRef.current.volume = 0.15;
     }
-    
+
     if (isAmbiencePlaying) {
       ambientAudioRef.current.pause();
     } else {
@@ -752,16 +793,16 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
     const initializeSystem = async () => {
       let retries = 0;
       const maxRetries = 5;
-      
+
       const attemptConnection = async () => {
         try {
           setInitializationRetry(retries + 1);
-          
+
           // Check backend connectivity
-          const healthCheck = await fetch(`${apiUrl}/api/readiness/status`, { 
-            signal: AbortSignal.timeout(3000) 
+          const healthCheck = await fetch(`${apiUrl}/api/readiness/status`, {
+            signal: AbortSignal.timeout(3000)
           }).catch(() => null);
-          
+
           if (healthCheck && healthCheck.ok) {
             // Backend is healthy - dismiss initialization
             setIsSystemInitializing(false);
@@ -775,7 +816,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
               setIsSystemInitializing(false);
               return false;
             }
-            
+
             // Wait before retrying (exponential backoff)
             await new Promise(resolve => setTimeout(resolve, 1000 * retries));
             return attemptConnection();
@@ -803,10 +844,10 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
     setIsLoadingIslamicData(true);
     try {
       // Verify backend is reachable
-      const healthCheck = await fetch(`${apiUrl}/api/readiness/status`, { 
-        signal: AbortSignal.timeout(3000) 
+      const healthCheck = await fetch(`${apiUrl}/api/readiness/status`, {
+        signal: AbortSignal.timeout(3000)
       }).catch(() => null);
-      
+
       if (!healthCheck || !healthCheck.ok) {
         console.warn("Backend not reachable at", apiUrl);
         showToast(`⚠️ Backend unavailable at ${apiUrl}. Please start: python3 backend/api/web_api.py`);
@@ -821,7 +862,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
         body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng }),
         signal: AbortSignal.timeout(5000)
       });
-      
+
       if (!pRes.ok) throw new Error(`Prayer times failed: ${pRes.status}`);
       const pData = await pRes.json();
       setPrayerTimes(pData.data || pData.prayer_times);
@@ -833,7 +874,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
         body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng }),
         signal: AbortSignal.timeout(5000)
       });
-      
+
       if (!qRes.ok) throw new Error(`Qibla failed: ${qRes.status}`);
       const qData = await qRes.json();
       setQibla(qData);
@@ -842,14 +883,14 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
       const cRes = await fetch(`${apiUrl}/api/calendar`, {
         signal: AbortSignal.timeout(5000)
       });
-      
+
       if (!cRes.ok) throw new Error(`Calendar failed: ${cRes.status}`);
       const cData = await cRes.json();
       setCalendarData(cData);
     } catch (error: any) {
       const errMsg = error?.message || error?.toString() || "Unknown error";
       console.error("Failed to fetch Islamic data:", errMsg);
-      
+
       if (errMsg.includes("timeout")) {
         showToast("⏱️ Request timeout - Backend may be slow");
       } else if (errMsg.includes("Failed to fetch")) {
@@ -960,13 +1001,13 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
     const textToSend = (text || inputMessage).trim();
     if (!textToSend && !selectedFile && !isTyping) return;
 
-    const userMsg: Message = { 
-      id: Date.now(), 
-      text: textToSend || (selectedFile ? `[Sent Attachment: ${selectedFile.name}]` : ""), 
-      sender: 'user', 
-      timestamp: new Date() 
+    const userMsg: Message = {
+      id: Date.now(),
+      text: textToSend || (selectedFile ? `[Sent Attachment: ${selectedFile.name}]` : ""),
+      sender: 'user',
+      timestamp: new Date()
     };
-    
+
     setMessages(prev => [...prev, userMsg]);
     if (!text) setInputMessage('');
     setIsTyping(true);
@@ -1021,10 +1062,10 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
 
       const data = await response.json();
 
-      const aiMsg: Message = { 
-        id: Date.now() + 1, 
-        text: typeof data.response === 'string' ? data.response : JSON.stringify(data.response, null, 2), 
-        sender: 'ai', 
+      const aiMsg: Message = {
+        id: Date.now() + 1,
+        text: typeof data.response === 'string' ? data.response : JSON.stringify(data.response, null, 2),
+        sender: 'ai',
         timestamp: new Date(),
         thoughts: data.thoughts
       };
@@ -1092,117 +1133,232 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
     const text = msg.text;
 
     if (isAI) {
-      // Enhanced regex to match broader scholarly formats like [The Holy Quran 17:78] or [Sahih Bukhari 123]
       const quranRegex = /\[(?:The\s+Holy\s+)?Quran\s*(?:\([^)]*\))?\s*(\d+:\d+)\]/i;
       const hadithRegex = /\[(?:Sahih\s+|Sunan\s+|Jami`?\s+|Muwatta\s+)?(Bukhari|Muslim|Hadith|Tirmidhi|Dawud|Nasa'i|Majah|Malik|Nawawi)\s*(?:\([^)]*\))?\s*(?:Hadith\s+)?#?(\d+)\]/i;
 
-      // Split into blocks for pagination
-      const allBlocks = text.split('\n\n').filter((b: string) => b.trim());
       const isExpanded = expandedMessages[msg.id] || forceFull;
-      const blocksToShow = isExpanded ? allBlocks.length : Math.min(3, allBlocks.length);
-      const displayBlocks = allBlocks.slice(0, blocksToShow);
 
-      return (
-        <div className="space-y-12 relative">
-          {displayBlocks.map((block: string, i: number) => {
-            // Case 1: Scholar Evidence (Quran/Hadith)
-            if (quranRegex.test(block)) {
-              const match = block.match(quranRegex);
-              return <ScholarEvidence key={i} type="quran" translation={block.replace(quranRegex, "").trim()} reference={`Quran ${match![1]}`} apiUrl={apiUrl} onSelectReference={setSelectedReference} />;
+      const renderBlocks = (blocks: string[]) => {
+        return blocks.map((block, i) => {
+          const quranMatch = block.match(quranRegex);
+          const hadithMatch = block.match(hadithRegex);
+
+          if (quranMatch || hadithMatch) {
+            let rawTranslation = block.replace(quranRegex, "").replace(hadithRegex, "").trim();
+            
+            // Aggressively strip circular labels and artifacts
+            let cleanTranslation = rawTranslation
+              .replace(/(?:Divine Revelation|Prophetic Authority|Authentic Evidence|Translation(?:\s*\([^)]*\))?)\s*[:\-]*\s*/gi, "")
+              .replace(/^[\s\-\•\.\*\|]+|[\s\-\•\.\*\|]+$/g, "")
+              .trim();
+
+            // If it's JUST a citation (no significant text), render a Source Chip
+            if (cleanTranslation.length < 3) {
+              const ref = quranMatch ? `Quran ${quranMatch[1]}` : `${hadithMatch![1]} ${hadithMatch![2]}`;
+              return (
+                <motion.div
+                  key={i}
+                  whileHover={{ x: 5 }}
+                  className="flex items-center gap-3 py-3.5 px-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-gold-primary/30 transition-all group/source cursor-default"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-gold-primary/40 group-hover/source:bg-gold-primary transition-colors shadow-[0_0_8px_rgba(229,192,111,0.4)]" />
+                  <span className="text-[13px] font-black text-white/50 group-hover/source:text-gold-primary transition-colors tracking-[0.1em] uppercase font-outfit">
+                    {ref}
+                  </span>
+                </motion.div>
+              );
             }
-            if (hadithRegex.test(block)) {
-              const match = block.match(hadithRegex);
-              return <ScholarEvidence key={i} type="hadith" translation={block.replace(hadithRegex, "").trim()} reference={`${match![1]} ${match![2]}`} apiUrl={apiUrl} onSelectReference={setSelectedReference} />;
-            }
 
-            // Case 2: Script-Aware Block Parsing
-            const lines = block.split('\n').filter((l: string) => l.trim());
-            const processedLines = lines.map((line: string, idx: number) => {
-              const lineTrimmed = line.trim();
-              const scriptType = detectScript(lineTrimmed);
-              const isArabic = scriptType === 'arabic';
-              
-              if (isArabic) {
-                let content = lineTrimmed;
-                // Remove prefixes if they still exist for backward compatibility or direct data
-                content = content.replace(/^(?:arabic|urdu):/i, "").trim();
+            // If it has text, render a full ScholarEvidence card
+            return <ScholarEvidence
+              key={i}
+              type={quranMatch ? 'quran' : 'hadith'}
+              translation={cleanTranslation}
+              reference={quranMatch ? `Quran ${quranMatch[1]}` : `${hadithMatch![1]} ${hadithMatch![2]}`}
+              apiUrl={apiUrl}
+              onSelectReference={setSelectedReference}
+            />;
+          }
 
-                // Intelligently peel off trailing transliterations in parentheses (but do not display)
-                const translitMatch = content.match(/\(([^)]+)\)$/);
-                if (translitMatch) {
-                  content = content.replace(translitMatch[0], "").trim();
+          // Case 2: Script-Aware Parsing
+          const lines = block.split('\n').filter(l => l.trim());
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05, duration: 0.8 }}
+              className="space-y-4"
+            >
+              {lines.map((line, idx) => {
+                // Aggressively strip multiple leading bullets, dashes, and artifacts
+                const lineTrimmed = line.trim()
+                  .replace(/\*\*/g, "")
+                  .replace(/^[\s\-\•\.\*\|]+/, "")
+                  .trim();
+                
+                if (!lineTrimmed) return null;
+
+                const scriptType = detectScript(lineTrimmed);
+                if (scriptType === 'arabic') {
+                  let content = lineTrimmed.replace(/^(?:arabic|urdu):/i, "").trim();
+                  const translitMatch = content.match(/\(([^)]+)\)$/);
+                  if (translitMatch) content = content.replace(translitMatch[0], "").trim();
+                  return <div key={idx} dir="rtl" className="text-right py-4 arabic-text text-5xl text-gold-primary border-b border-gold-primary/5">{content}</div>;
                 }
 
-                return (
-                  <div key={idx} className="space-y-4 mb-14 group/script">
-                    <div
-                      dir="rtl"
-                      className="text-right drop-shadow-2xl transition-all duration-700 py-6 arabic-text text-6xl text-gold-primary border-b border-gold-primary/10 hover:border-gold-primary/30"
+                if (/^\[.+\]$/.test(lineTrimmed)) {
+                  return (
+                    <motion.div
+                      key={idx}
+                      whileHover={{ x: 5 }}
+                      className="flex items-center gap-3 py-3 px-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-gold-primary/30 transition-all group/source cursor-default"
                     >
-                      {content}
-                    </div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-gold-primary/40 group-hover/source:bg-gold-primary transition-colors shadow-[0_0_8px_rgba(229,192,111,0.4)]" />
+                      <span className="text-[13px] font-black text-white/50 group-hover/source:text-gold-primary transition-colors tracking-[0.1em] uppercase font-outfit">
+                        {lineTrimmed.slice(1, -1)}
+                      </span>
+                    </motion.div>
+                  );
+                }
+
+                if (/^\(.*\)$/.test(lineTrimmed)) return null;
+                return (
+                  <p key={idx} className={cn(
+                    "text-white/80 leading-[1.8] font-medium mb-4 last:mb-0 antialiased",
+                    forceFull ? "text-[24px]" : "text-[18px]"
+                  )}>
+                    {lineTrimmed.split(/(\[[^\]]+\])/g).map((part, j) => {
+                      if (part.startsWith('[') && part.endsWith(']')) {
+                        return <span key={j} className="text-gold-primary/60 font-bold px-1.5 py-0.5 bg-gold-primary/5 rounded border border-gold-primary/10 mx-0.5 whitespace-nowrap">{part}</span>;
+                      }
+                      return part;
+                    })}
+                  </p>
+                );
+              })}
+            </motion.div>
+          );
+        });
+      };
+
+      // --- Structural Split ---
+      const structuralBlocks = text.split(/(?=\d[\)\.]\s*(?:Scholarly Essence|Detailed Guidance|Practical Steps|Authentic Sources|Answer|Key points|Next step|Sources|The Heart of Wisdom|Divine Light & Guidance|The Path of Action|Sacred Foundations|The Radiance of Knowledge|Introduction|User-Centric Answer|Evidence|Personal Guidance|Key Themes & Insights))/i);
+
+      if (structuralBlocks.length > 1) {
+        return (
+          <div className="space-y-12 relative">
+            {structuralBlocks.filter(b => b.trim()).map((block, i) => {
+              // Resilient regex for headers, allowing optional bolding and various separators
+              const match = block.match(/^(\s*(?:\*\*)?(\d)[\)\.]\s*(?:\*\*)?\s*(Scholarly Essence|Detailed Guidance|Practical Steps|Authentic Sources|Answer|Key points|Next step|Sources|The Heart of Wisdom|Divine Light & Guidance|The Path of Action|Sacred Foundations|The Radiance of Knowledge|Introduction|User-Centric Answer|Evidence|Personal Guidance|Key Themes & Insights)(?:\*\*)?)(.*)$/is);
+
+              if (match) {
+                const sectionNum = match[2];
+                const sectionTitle = match[3];
+                let contentPart = match[4].trim();
+
+                // Clean up leading punctuation or artifacts from the content part
+                contentPart = contentPart.replace(/^[:\-\s•\.]+/i, "").trim();
+
+                const fascinatingTitles: Record<string, string> = {
+                  '1': 'The Radiance of Knowledge',
+                  '2': 'The Heart of Wisdom',
+                  '3': 'Divine Light & Guidance',
+                  '4': 'The Path of Action',
+                  '5': 'Sacred Foundations',
+                  'The Radiance of Knowledge': 'The Radiance of Knowledge',
+                  'Introduction': 'The Radiance of Knowledge',
+                  'Header': 'The Radiance of Knowledge',
+                  'The Heart of Wisdom': 'The Heart of Wisdom',
+                  'User-Centric Answer': 'The Heart of Wisdom',
+                  'Scholarly Essence': 'The Heart of Wisdom',
+                  'Answer': 'The Heart of Wisdom',
+                  'Divine Light & Guidance': 'Divine Light & Guidance',
+                  'Evidence': 'Divine Light & Guidance',
+                  'Detailed Guidance': 'Divine Light & Guidance',
+                  'Key points': 'Divine Light & Guidance',
+                  'The Path of Action': 'The Path of Action',
+                  'Personal Guidance': 'The Path of Action',
+                  'Practical Steps': 'The Path of Action',
+                  'Next step': 'The Path of Action',
+                  'Sacred Foundations': 'Sacred Foundations',
+                  'Key Themes & Insights': 'Sacred Foundations',
+                  'Authentic Sources': 'Sacred Foundations',
+                  'Sources': 'Sacred Foundations'
+                };
+
+                const sectionStyles: Record<string, string> = {
+                  '1': 'section-intro text-amber-200 border-amber-200/30',
+                  '2': 'section-essence text-gold-primary border-gold-primary/30',
+                  '3': 'section-guidance text-blue-400 border-blue-400/30',
+                  '4': 'section-steps text-emerald-400 border-emerald-400/30',
+                  '5': 'section-themes text-purple-400 border-purple-400/20',
+                  'The Radiance of Knowledge': 'section-intro text-amber-200 border-amber-200/30',
+                  'Introduction': 'section-intro text-amber-200 border-amber-200/30',
+                  'The Heart of Wisdom': 'section-essence text-gold-primary border-gold-primary/30',
+                  'User-Centric Answer': 'section-essence text-gold-primary border-gold-primary/30',
+                  'Divine Light & Guidance': 'section-guidance text-blue-400 border-blue-400/30',
+                  'Evidence': 'section-guidance text-blue-400 border-blue-400/30',
+                  'The Path of Action': 'section-steps text-emerald-400 border-emerald-400/30',
+                  'Personal Guidance': 'section-steps text-emerald-400 border-emerald-400/30',
+                  'Sacred Foundations': 'section-themes text-purple-400 border-purple-400/20',
+                  'Key Themes & Insights': 'section-themes text-purple-400 border-purple-400/20'
+                };
+
+                return (
+                  <div key={i} className="space-y-6">
+                    <motion.div
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className={cn(
+                        "flex items-center gap-4 py-3.5 px-7 rounded-r-2xl border-l-4 w-full mt-12 mb-6 premium-card-shadow transition-all duration-500",
+                        sectionStyles[sectionNum] || 'bg-white/5 border-white/10'
+                      )}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-[10px] opacity-40 font-black uppercase tracking-[0.4em] mb-1">Illumination 0{sectionNum}</span>
+                        <span className="text-[14px] font-black uppercase tracking-[0.3em] font-outfit">{fascinatingTitles[sectionNum] || sectionTitle}</span>
+                      </div>
+                    </motion.div>
+
+                    {contentPart && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className={cn(
+                          "ml-4 p-8 rounded-[2rem] bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl premium-card-shadow",
+                          sectionNum === '4' ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "space-y-6"
+                        )}
+                      >
+                        {renderBlocks(contentPart.split('\n').filter(b => b.trim()))}
+                      </motion.div>
+                    )}
                   </div>
                 );
               }
+              return renderBlocks(block.split('\n\n').filter(b => b.trim()));
+            })}
+          </div>
+        );
+      }
 
-              // Hide Transliteration-only lines (standalone parentheses)
-              if (/^\(.*\)$/.test(lineTrimmed)) {
-                return null;
-              }
+      // --- Fallback (No Structural Markers) ---
+      const allBlocks = text.split('\n\n').filter((b: string) => b.trim());
 
-              // Fallback for standard English/Mixed text
-              return (
-                <p key={idx} className={cn(
-                  "text-white/90 leading-[2.2] font-medium tracking-tight mb-6 last:mb-0 antialiased",
-                  forceFull ? "text-[28px]" : "text-[20px]"
-                )}>
-                  {lineTrimmed.split(/(\*\*.*?\*\*)/g).map((part: string, j: number) =>
-                    part.startsWith('**') && part.endsWith('**')
-                      ? <strong key={j} className="text-gold-primary font-black drop-shadow-[0_0_10px_rgba(229,192,111,0.3)]">{part.slice(2, -2)}</strong>
-                      : part
-                  )}
-                </p>
-              );
-            });
-
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.12, duration: 1, ease: [0.16, 1, 0.3, 1] as any }}
-                className="space-y-4"
-              >
-                {processedLines}
-              </motion.div>
-            );
-          })}
-
-          {/* Load More Button for Large Responses */}
-          {showLoadMore && !isExpanded && allBlocks.length > 3 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-12 flex justify-center"
-            >
-              <button
-                onClick={() => setExpandedMessages(prev => ({ ...prev, [msg.id]: true }))}
-                className="px-8 py-4 bg-gold-primary/20 hover:bg-gold-primary/30 border border-gold-primary/40 hover:border-gold-primary/60 rounded-full text-gold-primary font-black uppercase tracking-[0.4em] text-[11px] transition-all shadow-[0_0_20px_rgba(229,192,111,0.1)] hover:shadow-[0_0_30px_rgba(229,192,111,0.2)]"
-              >
-                📖 Load More Results ({allBlocks.length - blocksToShow} remaining)
-              </button>
-            </motion.div>
-          )}
+      return (
+        <div className="space-y-8 relative">
+          {renderBlocks(allBlocks)}
         </div>
       );
     }
-    return <div className="text-[18px] font-semibold text-white/95 leading-relaxed">{text}</div>;
+    return <div className="text-[18px] font-medium text-white/90 leading-relaxed bg-white/5 p-6 rounded-3xl border border-white/10">{text}</div>;
   };
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-12 bg-[#011412]">
       <SanctuaryBackground isActive={isAmbiencePlaying} />
-      
+
       {/* High-Fidelity Realistic Background */}
       <div className={cn("absolute inset-0 z-0 pointer-events-none transition-opacity duration-[2000ms]", isAmbiencePlaying ? "opacity-30" : "opacity-100")}>
         <img
@@ -1262,9 +1418,9 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                 <div className="px-6 py-2">
                   <span className="text-[10px] font-black text-gold-primary/40 tracking-[0.5em] uppercase">Real-time Sacred Data</span>
                 </div>
-                
+
                 {/* Prayer Times Widget */}
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.01 }}
                   className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-8 mx-2 shadow-xl"
                 >
@@ -1281,33 +1437,33 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-6 space-y-3">
-                       <MapPin size={24} className="text-white/10" />
-                       <div className="text-[11px] text-white/20 uppercase tracking-widest font-bold">Location data unavailable</div>
-                       <button onClick={() => window.location.reload()} className="text-[9px] text-gold-primary font-black uppercase underline tracking-widest">Retry Access</button>
+                      <MapPin size={24} className="text-white/10" />
+                      <div className="text-[11px] text-white/20 uppercase tracking-widest font-bold">Location data unavailable</div>
+                      <button onClick={() => window.location.reload()} className="text-[9px] text-gold-primary font-black uppercase underline tracking-widest">Retry Access</button>
                     </div>
                   )}
                 </motion.div>
 
                 {/* Qibla Direction Widget */}
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.02 }}
                   className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-8 mx-2 flex items-center gap-8 shadow-xl"
                 >
                   {isLoadingIslamicData ? (
-                     <div className="flex items-center gap-6 w-full">
-                        <div className="w-16 h-16 rounded-full bg-white/5 animate-pulse" />
-                        <div className="flex-1 h-12 bg-white/5 rounded-2xl animate-pulse" />
-                     </div>
+                    <div className="flex items-center gap-6 w-full">
+                      <div className="w-16 h-16 rounded-full bg-white/5 animate-pulse" />
+                      <div className="flex-1 h-12 bg-white/5 rounded-2xl animate-pulse" />
+                    </div>
                   ) : qibla?.bearing ? (
                     <>
                       <QiblaCompass bearing={qibla?.bearing || 0} direction={qibla?.direction || ''} />
                       <div className="flex flex-col">
                         <span className="text-[14px] font-black text-white/90 font-outfit uppercase tracking-wider">Qibla Direction</span>
                         <div className="flex items-baseline gap-2">
-                           <span className="text-[20px] font-black text-gold-primary tracking-tighter">
+                          <span className="text-[20px] font-black text-gold-primary tracking-tighter">
                             {qibla.bearing.toFixed(1)}°
-                           </span>
-                           <span className="text-[12px] font-bold text-white/40 uppercase tracking-widest">{qibla.direction}</span>
+                          </span>
+                          <span className="text-[12px] font-bold text-white/40 uppercase tracking-widest">{qibla.direction}</span>
                         </div>
                         <span className="text-[9px] font-bold text-gold-primary/40 uppercase tracking-[0.2em] mt-1">Facing Holy Kaaba (Makkah)</span>
                       </div>
@@ -1320,7 +1476,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                 </motion.div>
 
                 {/* Hijri Vision Interactive Timeline Trigger */}
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.02 }}
                   onClick={() => { setIsTimelineOpen(true); setIsSidebarOpen(false); }}
                   className="bg-gold-primary/10 border border-gold-primary/30 rounded-[2.5rem] p-8 mx-2 mt-4 cursor-pointer group relative overflow-hidden"
@@ -1339,9 +1495,9 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                   </div>
                 </motion.div>
               </div>
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
         {/* Chat Sanctuary Area */}
         <div className="flex-1 flex flex-col relative bg-gradient-to-br from-white/[0.015] via-white/[0.005] to-transparent w-full">
@@ -1361,7 +1517,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                 <div className="flex items-center gap-3">
                   <span className="text-2xl font-black text-white tracking-tight uppercase font-outfit">Noor Islamic Agent</span>
                   {/* Scholarly Engine Status Badge */}
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className={cn("px-4 py-1.5 rounded-full border flex items-center gap-2", engineBg, engineBorder)}
@@ -1381,14 +1537,14 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
 
               <div className="flex items-center gap-4">
                 {/* Resilience Demo Toggle (Hidden/Subtle for Pitch) */}
-                <button 
+                <button
                   onClick={async () => {
                     const newMode = !isDemoMode;
                     setIsDemoMode(newMode);
                     try {
                       await fetch(`${apiUrl}/api/demo/toggle`, { method: 'POST' });
                       setToast(newMode ? "🛡️ Local Resilience Mode Active" : "🌐 Cloud Synthesis Active");
-                    } catch (e) {}
+                    } catch (e) { }
                   }}
                   className={cn(
                     "w-12 h-12 rounded-full flex items-center justify-center transition-all border",
@@ -1406,20 +1562,20 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
 
           <AnimatePresence>
             {selectedReference && (
-              <IsnadChain 
-                reference={selectedReference} 
-                apiUrl={apiUrl} 
-                onClose={() => setSelectedReference(null)} 
+              <IsnadChain
+                reference={selectedReference}
+                apiUrl={apiUrl}
+                onClose={() => setSelectedReference(null)}
               />
             )}
           </AnimatePresence>
 
           <AnimatePresence>
             {deepDiveMessage && (
-              <ScholarDeepDive 
-                msg={deepDiveMessage} 
+              <ScholarDeepDive
+                msg={deepDiveMessage}
                 renderContent={renderMessageContent}
-                onClose={() => setDeepDiveMessage(null)} 
+                onClose={() => setDeepDiveMessage(null)}
               />
             )}
           </AnimatePresence>
@@ -1528,21 +1684,21 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                 <div className="bg-gold-primary/5 border border-gold-primary/20 rounded-[2rem] px-12 py-6 flex gap-6 items-center backdrop-blur-3xl shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
                   <div className="flex gap-2">
                     {[0, 1, 2].map(i => (
-                      <motion.div 
-                        key={i} 
-                        animate={{ 
+                      <motion.div
+                        key={i}
+                        animate={{
                           scale: [1, 1.5, 1],
                           opacity: [0.3, 1, 0.3],
                           boxShadow: ["0 0 0px #E5C06F", "0 0 15px #E5C06F", "0 0 0px #E5C06F"]
-                        }} 
-                        transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.3, ease: "easeInOut" }} 
-                        className="w-3 h-3 bg-gold-primary rounded-full" 
+                        }}
+                        transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.3, ease: "easeInOut" }}
+                        className="w-3 h-3 bg-gold-primary rounded-full"
                       />
                     ))}
                   </div>
-                    <span className="text-[13px] font-black text-gold-primary uppercase tracking-[0.5em] font-outfit animate-pulse">
-                      {scholarlyStatus}
-                    </span>
+                  <span className="text-[13px] font-black text-gold-primary uppercase tracking-[0.5em] font-outfit animate-pulse">
+                    {scholarlyStatus}
+                  </span>
                 </div>
               </motion.div>
             )}
@@ -1554,7 +1710,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
               {/* Selected File Indicator */}
               <AnimatePresence>
                 {supportsAttachments && selectedFile && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
@@ -1598,14 +1754,14 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
               )}>
                 {supportsAttachments && (
                   <>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleFileUpload} 
-                      className="hidden" 
-                      accept=".pdf,.txt,image/*" 
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      accept=".pdf,.txt,image/*"
                     />
-                    <button 
+                    <button
                       onClick={() => fileInputRef.current?.click()}
                       className="p-3 text-white/20 hover:text-gold-primary transition-all group-hover/input:text-white/40"
                     >
@@ -1637,7 +1793,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     ))}
                   </select>
                   {supportsVoice && (
-                    <button 
+                    <button
                       onClick={toggleRecording}
                       className={cn(
                         "p-2 transition-all",
@@ -1659,11 +1815,11 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                   </button>
                 </div>
               </div>
-              
+
               {/* Agent Initializing Indicator */}
               <AnimatePresence>
                 {isAgentInitializing && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-6 flex justify-center"
@@ -1750,7 +1906,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                       className="w-2 h-2 rounded-full bg-gold-primary"
                     />
                     <span className="text-sm font-medium">
-                      Connecting to backend services... 
+                      Connecting to backend services...
                       {initializationRetry > 0 && <span className="ml-2 text-gold-primary font-black">(Attempt {initializationRetry}/5)</span>}
                     </span>
                   </motion.div>

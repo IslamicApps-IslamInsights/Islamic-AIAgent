@@ -206,6 +206,40 @@ def toggle_demo_mode():
         "message": f"Demo Mode (Resilience) {'Enabled' if demo_mode else 'Disabled'}"
     })
 
+@app.route('/api/quran/verse', methods=['POST'])
+def get_quran_verse():
+    try:
+        data = request.json
+        verse_ref = data.get('verse')
+        if not verse_ref:
+            return jsonify({"error": "Verse reference required"}), 400
+        
+        # Clean reference (remove 'Quran' or other prefixes)
+        clean_ref = re.sub(r'[^0-9:]', '', verse_ref).strip()
+        
+        from backend.utils.quran_mcp_provider import fetch_verse_with_translation
+        import asyncio
+        
+        # Run async fetch in sync environment
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(fetch_verse_with_translation(clean_ref))
+            if result:
+                return jsonify({
+                    "status": "success",
+                    "text": result.get("text"),
+                    "translation": result.get("translation"),
+                    "reference": f"Quran {clean_ref}"
+                })
+        finally:
+            loop.close()
+            
+        return jsonify({"error": "Verse not found"}), 404
+    except Exception as e:
+        logger.error(f"Quran verse fetch error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # Global analytics path - stored in the new backend/data directory
 ANALYTICS_FILE = os.path.join(project_root, 'backend', 'data', 'topic_analytics.json')
 

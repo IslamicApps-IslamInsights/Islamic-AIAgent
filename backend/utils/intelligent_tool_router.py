@@ -1147,10 +1147,11 @@ class IntelligentToolRouter:
                 if verses:
                     label_lang = (lang or "en").upper()
                     blocks = []
-                    for i, verse in enumerate(verses[:2], 1):
+                    for i, verse in enumerate(verses[:3], 1):
                         surah = verse.get("surah")
                         ayah = verse.get("ayah")
-                        ref = f"Quran {surah}:{ayah} [Quran Foundation MCP]"
+                        # Cleaner reference for LLM synthesis
+                        ref = f"Quran {surah}:{ayah}"
                         text = (verse.get("text") or "").strip()
                         translation = (verse.get("translation") or "").strip()
                         content_parts = []
@@ -1160,15 +1161,16 @@ class IntelligentToolRouter:
                             content_parts.append(f"Translation ({label_lang}): {translation}")
                         content = "\n".join(content_parts).strip()
                         if content:
-                            blocks.append(f"[Source MCP-{i}] {ref}")
+                            # Use a distinct Source ID for MCP results
+                            blocks.append(f"[Source Quran-{i}] {ref}")
                             blocks.append(content)
                             blocks.append("")
 
                     if blocks:
                         kb_results = (
-                            kb_results.rstrip()
+                            "\n".join(blocks).strip()
                             + "\n\n"
-                            + "\n".join(blocks).strip()
+                            + kb_results.rstrip()
                         )
             except Exception:
                 pass

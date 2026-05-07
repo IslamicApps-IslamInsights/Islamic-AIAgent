@@ -1,0 +1,174 @@
+{
+  "timestamp": "2026-05-08T02:07:15.084972",
+  "overall_status": "FAIL",
+  "sections": [
+    {
+      "name": "Files & Structure",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "Ingestion Pipeline (ingest_best_practices.py)",
+          "passed": true,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/backend/knowledge/ingest_best_practices.py",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "LLM Configuration (llm_best_practices.py)",
+          "passed": true,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/backend/utils/llm_best_practices.py",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Best Practices Documentation",
+          "passed": true,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/docs/BEST_PRACTICES_IMPLEMENTATION.md",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Best Practices Requirements",
+          "passed": true,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/requirements_best_practices.txt",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Setup Script",
+          "passed": true,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/setup_best_practices.sh",
+          "status": "\u2705 PASS"
+        }
+      ]
+    },
+    {
+      "name": "Dependencies",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "Dependency: langchain",
+          "passed": true,
+          "details": "Core RAG framework",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Dependency: langchain_community",
+          "passed": true,
+          "details": "LangChain community modules",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Dependency: rank_bm25",
+          "passed": true,
+          "details": "BM25 search implementation",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Dependency: nltk",
+          "passed": true,
+          "details": "NLP tokenization",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Dependency: transformers",
+          "passed": true,
+          "details": "HuggingFace models",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Dependency: chromadb",
+          "passed": true,
+          "details": "Vector database",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Dependency: google.generativeai",
+          "passed": true,
+          "details": "Gemini API",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Dependency: anthropic",
+          "passed": false,
+          "details": "Claude API - Not installed",
+          "status": "\u274c FAIL"
+        }
+      ]
+    },
+    {
+      "name": "Data Setup",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "Data Directory",
+          "passed": true,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/backend/knowledge/data",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Data Files Present",
+          "passed": true,
+          "details": "JSON: 17, TXT: 24",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Vector DB Directory",
+          "passed": false,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/backend/knowledge/chroma_db (Created during first ingestion)",
+          "status": "\u274c FAIL"
+        },
+        {
+          "name": "BM25 Index",
+          "passed": true,
+          "details": "Size: 28.6MB",
+          "status": "\u2705 PASS"
+        }
+      ]
+    },
+    {
+      "name": "Configuration",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": ".env Configuration File",
+          "passed": true,
+          "details": "Location: /Users/fahadiqbal/Downloads/Latest Projects/Islamic-AIAgent/.env",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Gemini API Key (GOOGLE_API_KEY)",
+          "passed": true,
+          "details": "Configured",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "Claude API Key (ANTHROPIC_API_KEY)",
+          "passed": true,
+          "details": "Configured",
+          "status": "\u2705 PASS"
+        },
+        {
+          "name": "LLM Synthesis Available",
+          "passed": true,
+          "details": "At least one LLM API configured",
+          "status": "\u2705 PASS"
+        }
+      ]
+    },
+    {
+      "name": "API Status",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "Backend API (http://localhost:5010)",
+          "passed": false,
+          "details": "Connection refused - Backend not running",
+          "status": "\u274c FAIL"
+        },
+        {
+          "name": "Frontend (http://localhost:3001)",
+          "passed": false,
+          "details": "Connection refused - Frontend not running",
+          "status": "\u274c FAIL"
+        }
+      ]
+    }
+  ]
+}

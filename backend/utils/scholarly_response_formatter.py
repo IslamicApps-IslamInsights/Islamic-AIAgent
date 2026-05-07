@@ -206,32 +206,30 @@ class ScholarlyResponseFormatter:
         # Build response sections
         sections = []
         
-        # 1. Header
-        sections.append(
-            self._create_header(category, include_greeting=include_greeting)
-        )
+        # 1. The Radiance of Knowledge (Header & Intro)
+        intro = f"Assalamu Alaikum wa Rahmatullahi wa Barakatuh. We explore this query with a focus on {category.replace('_', ' ')}."
+        sections.append(f"1) The Radiance of Knowledge\n{intro}")
         
-        # 2. Intro
-        sections.append(self._create_scholarly_notice(query))
+        # 2. The Heart of Wisdom (User-Centric Answer)
+        answer = self._compose_user_centric_answer(query, parsed_results, category)
+        sections.append(f"2) The Heart of Wisdom\n{answer}")
         
-        # 3. User-Centric Answer
-        sections.append(
-            self._compose_user_centric_answer(query, parsed_results, category)
-        )
+        # 3. Divine Light & Guidance (Evidence)
+        evidence = self._categorize_and_format_results(parsed_results, category)
+        sections.append(f"3) Divine Light & Guidance\n" + "\n".join(evidence))
 
-        # 4. Evidence (short, readable)
-        sections.extend(
-            self._categorize_and_format_results(parsed_results, category)
-        )
-        
-        # 5. Personal Guidance
-        sections.append(self._create_personal_guidance(query, category))
+        # 4. The Path of Action (Personal Guidance)
+        steps = self._map_action_points(category, self._tokenize(query))
+        steps_text = "\n".join([f"- {p}" for p in steps[:3]])
+        sections.append(f"4) The Path of Action\n{steps_text}")
 
-        # 6. Key Themes & Insights
-        sections.append(self._extract_key_themes(parsed_results, kb_results))
+        # 5. Sacred Foundations (Key Themes & Insights)
+        themes = self._extract_key_themes(parsed_results, kb_results)
+        sections.append(f"5) Sacred Foundations\n{themes}")
         
-        # 7. Footer with Source Attribution
-        sections.append(self._create_footer(parsed_results))
+        # 4. Authentic Sources
+        sources = self._create_footer(parsed_results)
+        sections.append(f"4) Authentic Sources\n{sources}")
         
         return "\n\n".join(filter(None, sections))
     
@@ -407,27 +405,19 @@ class ScholarlyResponseFormatter:
             "If you want, I can summarize this into a short checklist you can follow daily."
         ]
 
-    def _create_header(self, category: str, include_greeting: bool = True) -> str:
-        """Create the header section"""
-        headers = {
-            "surah_specific": "📖 Surah guidance",
-            "quran_general": "🕌 Quran guidance",
-            "hadith": "⭐ Hadith guidance",
-            "dua": "🤲 Duas and adhkar",
-            "islamic_ethics": "🕌 Islamic character",
-            "seerah": "📜 Seerah (Prophet’s life)",
-            "fiqh": "⚖️ Practical fiqh guidance",
-            "aqeedah": "💎 Aqeedah (belief)",
+    def _create_essence_heading(self, category: str) -> str:
+        """Create the essence heading for the scholarly response"""
+        essences = {
+            "surah_specific": "**Divine Guidance from the Quran**",
+            "quran_general": "**Quranic Wisdom and Insights**",
+            "hadith": "**The Sunnah and Prophetic Guidance**",
+            "dua": "**The Power of Supplication and Adhkar**",
+            "islamic_ethics": "**Character Excellence (Akhlaq)**",
+            "seerah": "**Lessons from the Life of the Prophet ﷺ**",
+            "fiqh": "**Practical Islamic Jurisprudence**",
+            "aqeedah": "**The Foundations of Islamic Belief**",
         }
-        
-        title = headers.get(category, "🌙 Islamic guidance")
-        greeting = (
-            "Assalamu Alaikum wa Rahmatullahi wa Barakatuh.\n\n"
-            if include_greeting
-            else ""
-        )
-        
-        return f"{greeting}**{title}**"
+        return essences.get(category, "**Authentic Islamic Knowledge**")
     
     def _create_scholarly_notice(self, query: str) -> str:
         """Create the scholarly notice about local library authenticity"""

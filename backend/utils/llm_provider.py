@@ -67,30 +67,48 @@ def _sanitize_user_facing_answer(text: str) -> Optional[str]:
     if not cleaned:
         return None
 
+    # Remove final tag if present
     cleaned = cleaned.split("</final>")[0].strip()
 
+    # Handle various thought/think tag formats
     output_match = re.search(r"(?is)<output>(.*?)</output>", cleaned)
     if output_match:
         cleaned = (output_match.group(1) or "").strip()
     else:
         cleaned = re.sub(r"(?is)<thought>.*?</thought>", "", cleaned).strip()
         cleaned = re.sub(r"(?is)<think>.*?</think>", "", cleaned).strip()
+        # Fallback split
         cleaned = re.split(r"(?i)<thought>|<think>|<output>", cleaned, maxsplit=1)[0].strip()
 
+    # Preserve Islamic Greeting
+    greeting_match = re.search(r"(?i)(Assalamu\s+Alaikum\s+wa\s+Rahmatullahi\s+wa\s+Barakatuh\.?|Assalamu\s+Alaikum\.?)", cleaned)
+    greeting = ""
+    if greeting_match:
+        greeting = greeting_match.group(0)
+        # Ensure it has a double newline after it
+        greeting = greeting.rstrip() + ".\n\n"
+    
+    # Remove code blocks if LLM hallucinations them
     cleaned = re.sub(r"(?is)```.*?```", "", cleaned).strip()
-    if not cleaned:
-        return None
+    
+    # Ensure section headers are not bolded in the raw text (frontend will handle styling)
+    cleaned = re.sub(r"(?m)^\s*\*\*\s*(\d+[\)\.]\s*[^*]+?)\s*\*\*\s*$", r"\1", cleaned).strip()
 
-    cleaned = re.sub(
-        r"(?m)^\s*\*\*\s*(\d+[\)\.]\s*[^*]+?)\s*\*\*\s*$",
-        r"\1",
-        cleaned,
-    ).strip()
+    # Find where the actual content starts (either the greeting or the first section)
+    # If we have a greeting, we keep everything from the greeting onwards
+    # Otherwise, we start from the first "1)"
+    start_pos = -1
+    if greeting_match:
+        start_pos = greeting_match.start()
+    else:
+        m = re.search(r"(?m)^\s*(?:\*\*)?\s*1[\)\.]\s+", cleaned)
+        if m:
+            start_pos = m.start()
 
-    m = re.search(r"(?m)^\s*(?:\*\*)?\s*1[\)\.]\s+", cleaned)
-    if m and m.start() > 0:
-        cleaned = cleaned[m.start():].strip()
-
+    if start_pos != -1:
+        cleaned = cleaned[start_pos:].strip()
+    
+    # Double check we have at least section 1
     if not re.search(r"(?m)^\s*(?:\*\*)?\s*1[\)\.]\s+", cleaned):
         return None
 
@@ -409,7 +427,7 @@ def _call_llama_cpp_python(prompt: str) -> Optional[str]:
             )
 
     try:
-        max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "900"))
+        max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "2048"))
         temperature = float(os.getenv("LOCAL_LLM_TEMPERATURE", "0.4"))
         out = _llama_cpp_instance.create_completion(
             prompt=prompt,
@@ -441,7 +459,7 @@ def _call_llama_cpp_server(prompt: str) -> Optional[str]:
     else:
         url = base_url.rstrip("/") + "/v1/chat/completions"
 
-    max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "900"))
+    max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "2048"))
     temperature = float(os.getenv("LOCAL_LLM_TEMPERATURE", "0.4"))
     http_timeout_s = float(os.getenv("LOCAL_LLM_HTTP_TIMEOUT", "180"))
 
@@ -504,7 +522,15 @@ def _call_ollama(prompt: str) -> Optional[str]:
     try:
         response = requests.post(
             local_url,
-            json={"model": model, "prompt": prompt, "stream": False},
+            json={
+                "model": model, 
+                "prompt": prompt, 
+                "stream": False,
+                "options": {
+                    "num_predict": 2048,
+                    "temperature": 0.4
+                }
+            },
             timeout=60,
         )
         if response.status_code == 200:
@@ -586,38 +612,42 @@ def synthesize_from_evidence(
 
     prompt = (
         "You are " + persona + ".\n"
-        "Write a warm, engaging answer grounded ONLY in the evidence.\n"
-        "Use an Islamic tone that feels caring and practical.\n"
+        "Write a warm, engaging answer grounded ONLY in the provided evidence.\n"
+        "Use an Islamic tone that feels caring, practical, and authoritative.\n"
         "Start with: 'Assalamu Alaikum wa Rahmatullahi wa Barakatuh.'\n"
         "No emojis.\n"
-        "Use Islamic language when appropriate (Allah, Sunnah, Taqwa).\n"
-        "Add brief English meaning only if it helps the user.\n"
-        "Be encouraging and engaging.\n"
-        "End with 1 short question to guide the next step.\n"
-        "A brief generic closing dua in English is allowed.\n"
-        "It must not introduce new factual claims.\n"
-        "Never reveal your reasoning or planning.\n"
+        "Use Islamic terms (e.g., Taqwa, Ikhlas, Sabr, Sunnah) where appropriate.\n"
+        "Add brief English meaning in parentheses if it helps the user.\n"
+        "Be encouraging and academic yet accessible.\n"
+        "End with 1 short follow-up question to guide their learning.\n"
+        "A brief generic closing dua in English is encouraged.\n"
+        "Never reveal your reasoning or internal planning.\n"
         "Never output <Thought> or <think> tags.\n"
-        "Never say 'Alright, I need to'.\n"
         "Do not output anything before the required numbered sections.\n"
-        "If evidence is missing, say you are not sure.\n"
-        "Ask 1 short follow-up.\n"
-        "Cite sources using the same brackets as evidence, like [Source 1].\n"
-        "If you mention a specific dhikr phrase, narration detail, number,\n"
-        "or timing, it MUST be present in the evidence.\n"
-        "Otherwise, do not state it.\n"
-        "Do not mention embeddings, RAG, BM25, vectors, or system details.\n"
+        "If evidence is insufficient, state that clearly.\n"
+        "CITE SOURCES using specific brackets format in your text:\n"
+        "- For Quran: [Quran Surah:Ayah] (e.g., [Quran 2:255])\n"
+        "- For Hadith: [Collection #Number] (e.g., [Bukhari #123] or [Muslim #456])\n"
+        "- If you cite multiple, use separate brackets.\n"
         f"{name_line}\n"
         f"{goal_line}\n\n"
         f"Question: {question}\n\n"
         "Evidence:\n"
         f"{packed_evidence}\n\n"
-        "Return format (exactly):\n"
-        "1) Answer (short paragraphs)\n"
-        "2) Key points (3 bullets)\n"
-        "3) Next step (1 line, ends with 1 short question)\n"
-        "4) Sources (only cited; each bullet as: - [Source N] <reference>)\n"
+        "Return format (strictly follow this 5-part numbered structure, DO NOT use ** symbols anywhere):\n"
+        "1) The Radiance of Knowledge\n"
+        "(A warm, personalized scholarly introduction that acknowledges the user's query with an Islamic greeting and brief context. Do not repeat the header title.)\n\n"
+        "2) The Heart of Wisdom\n"
+        "(The direct, user-centric answer to the specific question asked. Focus on clarity and empathy. Do not repeat the header title.)\n\n"
+        "3) Divine Light & Guidance\n"
+        "(Scholarly Evidence. When citing Quran or Hadith, ALWAYS include the full Arabic text and English translation followed by the citation like [Quran 2:255] or [Bukhari #123]. Do not use labels like 'Translation:' inside the text.)\n\n"
+        "4) The Path of Action\n"
+        "(Personal Guidance. 3-5 practical, actionable steps the user can take immediately. Do not repeat the header title.)\n\n"
+        "5) Sacred Foundations\n"
+        "(Key Themes & Insights. Summarize 3-4 broader spiritual themes or scholarly insights derived from the evidence. Followed by a list of citations.)\n"
         "</final>\n"
+        "\n"
+        "CRITICAL: Avoid using '**' symbols. Do not repeat section headers in the content body. Focus on a warm, personal tone.\n"
     )
 
     text = call_local_llm(prompt)
