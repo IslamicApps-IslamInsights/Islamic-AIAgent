@@ -1242,13 +1242,40 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
         });
       };
 
+      // --- Sources Counting ---
+      const citationRegex = /\[([^\]]+)\]/g;
+      const uniqueSources = new Set();
+      let match;
+      while ((match = citationRegex.exec(text)) !== null) {
+        uniqueSources.add(match[1].trim());
+      }
+      const sourceCount = uniqueSources.size;
+
       // --- Structural Split ---
-      const structuralBlocks = text.split(/(?=\d[\)\.]\s*(?:Scholarly Essence|Detailed Guidance|Practical Steps|Authentic Sources|Answer|Key points|Next step|Sources|The Heart of Wisdom|Divine Light & Guidance|The Path of Action|Sacred Foundations|The Radiance of Knowledge|Introduction|User-Centric Answer|Evidence|Personal Guidance|Key Themes & Insights))/i);
+      const structuralBlocks = text.split(/(?=\d[\)\.]\s*(?:Scholarly Essence|Detailed Guidance|Practical Steps|Authentic Sources|Answer|Key points|Next step|Sources|The Heart of Wisdom|Divine Light & Guidance|The Path of Action|Sacred Foundations|The Radiance of Knowledge|Introduction|User-Centric Answer|Evidence|Personal Guidance|Key Themes & Insights))/i).filter(b => b.trim());
+
+      const blocksToShow = pageState[msg.id] || 2;
+      const hasMore = structuralBlocks.length > blocksToShow;
 
       if (structuralBlocks.length > 1) {
         return (
           <div className="space-y-12 relative">
-            {structuralBlocks.filter(b => b.trim()).map((block, i) => {
+            {/* Scholarly Authentication Seal */}
+            {sourceCount > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-gold-primary/5 border border-gold-primary/10 mb-8 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                <div className="w-2 h-2 rounded-full bg-gold-primary shadow-[0_0_10px_rgba(229,192,111,0.5)]" />
+                <span className="text-[11px] font-black text-gold-primary/80 uppercase tracking-[0.3em] font-outfit">
+                  Verified from {sourceCount} Scholarly Foundations
+                </span>
+              </motion.div>
+            )}
+
+            {structuralBlocks.slice(0, blocksToShow).map((block, i) => {
               // Resilient regex for headers, allowing optional bolding and various separators
               const match = block.match(/^(\s*(?:\*\*)?(\d)[\)\.]\s*(?:\*\*)?\s*(Scholarly Essence|Detailed Guidance|Practical Steps|Authentic Sources|Answer|Key points|Next step|Sources|The Heart of Wisdom|Divine Light & Guidance|The Path of Action|Sacred Foundations|The Radiance of Knowledge|Introduction|User-Centric Answer|Evidence|Personal Guidance|Key Themes & Insights)(?:\*\*)?)(.*)$/is);
 
@@ -1328,7 +1355,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                         transition={{ delay: i * 0.1 }}
                         className={cn(
                           "ml-4 p-8 rounded-[2rem] bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl premium-card-shadow",
-                          sectionNum === '4' ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "space-y-6"
+                          (sectionNum === '4' || sectionNum === '5' || sectionTitle === 'Sacred Foundations') ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "space-y-6"
                         )}
                       >
                         {renderBlocks(contentPart.split('\n').filter(b => b.trim()))}
@@ -1339,6 +1366,21 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
               }
               return renderBlocks(block.split('\n\n').filter(b => b.trim()));
             })}
+
+            {hasMore && (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                className="pt-8 text-center"
+              >
+                <button 
+                  onClick={() => setPageState(prev => ({ ...prev, [msg.id]: blocksToShow + 3 }))}
+                  className="px-10 py-4 rounded-full bg-gold-primary/5 border border-gold-primary/20 text-gold-primary font-black uppercase text-[11px] tracking-[0.3em] hover:bg-gold-primary/10 transition-all active:scale-95 shadow-[0_10px_30px_rgba(229,192,111,0.1)]"
+                >
+                  Illuminate Deeper Knowledge
+                </button>
+              </motion.div>
+            )}
           </div>
         );
       }
@@ -1348,6 +1390,14 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
 
       return (
         <div className="space-y-8 relative">
+          {sourceCount > 0 && (
+            <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-white/5 border border-white/10 mb-8">
+              <div className="w-1.5 h-1.5 rounded-full bg-gold-primary animate-pulse" />
+              <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] font-outfit">
+                Authenticated via {sourceCount} Scholarly Foundations
+              </span>
+            </div>
+          )}
           {renderBlocks(allBlocks)}
         </div>
       );
