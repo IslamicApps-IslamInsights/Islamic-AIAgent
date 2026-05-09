@@ -2,8 +2,8 @@
   "name": "islamic-ai-agent-monorepo",
   "private": true,
   "scripts": {
-    "build": "npm --prefix frontend ci && npm --prefix frontend run build",
-    "dev": "npm --prefix frontend run dev",
+    "build": "node api.js && npm --prefix frontend ci && npm --prefix frontend run build",
+    "dev": "node api.js && npm --prefix frontend run dev",
     "preview": "npm --prefix frontend run preview"
   }
 }
