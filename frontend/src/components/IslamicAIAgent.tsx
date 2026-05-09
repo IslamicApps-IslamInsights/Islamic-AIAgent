@@ -47,6 +47,31 @@ const detectScript = (text: string) => {
 };
 
 // --- Museum-Grade Assets ---
+const beautifySource = (source: string) => {
+  if (!source) return "";
+  let clean = source
+    .replace(/_/g, " ")
+    .replace(/\.json$/i, "")
+    .replace(/\.pdf$/i, "")
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+    .replace(/99 Names Of Allah Full/i, "The 99 Names of Allah")
+    .replace(/Hadith/i, "Authentic Hadith")
+    .replace(/Quran/i, "The Noble Quran")
+    .replace(/\bMuslim\b/i, "Sahih Muslim")
+    .replace(/\bBukhari\b/i, "Sahih al-Bukhari")
+    .replace(/\bTirmidhi\b/i, "Jami' at-Tirmidhi")
+    .replace(/\bDawud\b/i, "Sunan Abi Dawud")
+    .replace(/\bNasa'i\b/i, "Sunan an-Nasa'i")
+    .replace(/\bMajah\b/i, "Sunan Ibn Majah")
+    .replace(/\bMalik\b/i, "Muwatta Malik")
+    .replace(/\bNawawi\b/i, "40 Hadith Nawawi")
+    .replace(/Ibn Kathir/i, "Tafsir Ibn Kathir")
+    .trim();
+  return clean;
+};
+
 const NoorLogo = ({ size = 32, className = "" }: { size?: number, className?: string }) => (
   <div className={cn("relative flex items-center justify-center shrink-0", className)}>
     <div className="absolute inset-[-20%] bg-gold-primary/20 blur-[20px] rounded-full animate-pulse-slow shrink-0" />
@@ -85,48 +110,48 @@ const SanctuaryGreeting = ({ onSuggestionClick }: { onSuggestionClick: (query: s
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="flex flex-col items-center justify-center text-center space-y-20 max-w-5xl mx-auto py-24"
+      className="flex flex-col items-center justify-center text-center space-y-12 md:space-y-20 max-w-5xl mx-auto py-12 md:py-24 px-6"
     >
       <motion.div variants={itemVariants} className="relative">
-        <div className="absolute inset-0 bg-gold-primary/30 blur-[100px] rounded-full animate-pulse-slow scale-150" />
-        <NoorLogo size={160} className="relative animate-spin-slow duration-[60s]" />
+        <div className="absolute inset-0 bg-gold-primary/30 blur-[60px] md:blur-[100px] rounded-full animate-pulse-slow scale-150" />
+        <NoorLogo size={window.innerWidth < 768 ? 100 : 160} className="relative animate-spin-slow duration-[60s]" />
       </motion.div>
 
-      <motion.div variants={itemVariants} className="space-y-6">
-        <h6 className="font-amiri text-gold-primary text-6xl md:text-8xl leading-none drop-shadow-[0_20px_40px_rgba(229,192,111,0.4)] antialiased select-none">
+      <motion.div variants={itemVariants} className="space-y-4 md:space-y-6">
+        <h6 className="font-amiri text-gold-primary text-4xl md:text-8xl leading-tight md:leading-none drop-shadow-[0_10px_30px_rgba(229,192,111,0.4)] antialiased select-none px-4">
           اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ
         </h6>
-        <p className="text-gold-primary/50 text-[12px] font-black uppercase tracking-[0.8em] font-outfit mt-8">
+        <p className="text-gold-primary/50 text-[8px] md:text-[12px] font-black uppercase tracking-[0.4em] md:tracking-[0.8em] font-outfit mt-4 md:mt-8">
           Allah is the light of the heavens and the earth
         </p>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="space-y-12 max-w-3xl px-12">
-        <p className="text-white/90 text-2xl font-medium leading-relaxed tracking-tight font-outfit">
+      <motion.div variants={itemVariants} className="space-y-8 md:space-y-12 max-w-3xl px-4 md:px-12">
+        <p className="text-white/90 text-lg md:text-2xl font-medium leading-relaxed tracking-tight font-outfit">
           As-Salaam Alaykum. I am <span className="text-gold-primary font-black">Noor</span>, your scholarly portal to authentic Islamic knowledge.
         </p>
 
         {/* Interactive Suggestion Chips */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 pb-12">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-8 md:mt-16 pb-8 md:pb-12">
           {SUGGESTIONS.slice(0, 8).map((s, i) => (
             <motion.button
               key={i}
               whileHover={{ scale: 1.05, backgroundColor: 'rgba(229, 192, 111, 0.15)' }}
               whileTap={{ scale: 0.95 }}
               onClick={() => onSuggestionClick(s.query)}
-              className="flex flex-col items-center gap-4 p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-gold-primary/40 transition-all group"
+              className="flex flex-row md:flex-col items-center gap-3 md:gap-4 p-4 md:p-6 rounded-2xl md:rounded-3xl bg-white/[0.03] border border-white/10 hover:border-gold-primary/40 transition-all group"
             >
-              <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white/40 group-hover:text-gold-primary transition-colors">
-                <s.icon size={20} />
+              <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-xl md:rounded-2xl bg-white/5 flex items-center justify-center text-white/40 group-hover:text-gold-primary transition-colors">
+                <s.icon size={18} />
               </div>
-              <span className="text-[11px] font-black text-white/30 group-hover:text-white/80 uppercase tracking-widest font-outfit whitespace-nowrap">
+              <span className="text-[10px] md:text-[11px] font-black text-white/30 group-hover:text-white/80 uppercase tracking-widest font-outfit whitespace-nowrap overflow-hidden text-ellipsis">
                 {s.label}
               </span>
             </motion.button>
           ))}
         </div>
 
-        <div className="w-32 h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent mx-auto shadow-[0_0_15px_rgba(229,192,111,0.5)]" />
+        <div className="w-24 md:w-32 h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent mx-auto shadow-[0_0_15px_rgba(229,192,111,0.5)]" />
       </motion.div>
     </motion.div>
   );
@@ -136,14 +161,14 @@ const SidebarCard = ({ title, desc, icon: Icon, onClick }: { title: string, desc
   <motion.div
     whileHover={{ x: 8, backgroundColor: 'rgba(229, 192, 111, 0.04)' }}
     onClick={onClick}
-    className="flex items-start gap-4 p-6 mb-3 rounded-[2rem] cursor-pointer transition-all border border-transparent hover:border-gold-primary/10 group overflow-hidden"
+    className="flex items-start gap-4 p-4 md:p-6 mb-3 rounded-2xl md:rounded-[2rem] cursor-pointer transition-all border border-transparent hover:border-gold-primary/10 group overflow-hidden"
   >
-    <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/20 group-hover:text-gold-primary group-hover:bg-gold-primary/10 transition-all shadow-inner">
-      <Icon size={24} />
+    <div className="w-12 h-12 md:w-14 md:h-14 shrink-0 rounded-xl md:rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/20 group-hover:text-gold-primary group-hover:bg-gold-primary/10 transition-all shadow-inner">
+      <Icon size={20} />
     </div>
-    <div className="flex flex-col space-y-2 min-w-0 flex-1 overflow-hidden">
-      <h4 className="text-[15px] font-black text-white/90 group-hover:text-gold-primary transition-colors font-outfit text-wrap leading-snug">{title}</h4>
-      <p className="text-[11px] text-white/20 leading-tight font-medium line-clamp-2 group-hover:text-white/40 transition-colors uppercase tracking-wider text-wrap">{desc}</p>
+    <div className="flex flex-col space-y-1 md:space-y-2 min-w-0 flex-1 overflow-hidden">
+      <h4 className="text-[13px] md:text-[15px] font-black text-white/90 group-hover:text-gold-primary transition-colors font-outfit text-wrap leading-snug">{title}</h4>
+      <p className="text-[9px] md:text-[11px] text-white/20 leading-tight font-medium line-clamp-2 group-hover:text-white/40 transition-colors uppercase tracking-wider text-wrap">{desc}</p>
     </div>
 
   </motion.div>
@@ -155,7 +180,7 @@ const SanctuaryBackground = ({ isActive }: { isActive: boolean }) => (
     <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gold-primary/10 blur-[150px] rounded-full animate-pulse-slow" />
     <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-gold-primary/5 blur-[200px] rounded-full animate-pulse-slow delay-1000" />
     <div className="absolute inset-0 opacity-[0.03] flex items-center justify-center">
-      <NoorLogo size={800} className="scale-150 rotate-45 animate-spin-slow duration-[300s]" />
+      <NoorLogo size={window.innerWidth < 768 ? 400 : 800} className="scale-150 rotate-45 animate-spin-slow duration-[300s]" />
     </div>
   </div>
 );
@@ -163,15 +188,15 @@ const SanctuaryBackground = ({ isActive }: { isActive: boolean }) => (
 const ScholarlySkeleton = ({ height = 100 }: { height?: number }) => (
   <div className="w-full animate-pulse space-y-4 px-2">
     <div className="flex items-center gap-4">
-      <div className="w-12 h-12 rounded-2xl bg-white/5" />
+      <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/5" />
       <div className="flex-1 space-y-2">
         <div className="h-4 bg-white/5 rounded-full w-3/4" />
         <div className="h-2 bg-white/5 rounded-full w-1/2 opacity-50" />
       </div>
     </div>
     <div className="grid grid-cols-2 gap-3 mt-4">
-      <div className="h-12 bg-white/[0.03] rounded-xl border border-white/5" />
-      <div className="h-12 bg-white/[0.03] rounded-xl border border-white/5" />
+      <div className="h-10 md:h-12 bg-white/[0.03] rounded-lg md:rounded-xl border border-white/5" />
+      <div className="h-10 md:h-12 bg-white/[0.03] rounded-lg md:rounded-xl border border-white/5" />
     </div>
   </div>
 );
@@ -247,67 +272,67 @@ const ScholarEvidence = ({ type, translation, reference, apiUrl, onSelectReferen
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="evidence-box group border-gold-primary/30 mt-12 mb-8 bg-gradient-to-br from-black/60 to-[#011412]/80 rounded-[2.5rem] overflow-hidden border shadow-[0_30px_60px_rgba(0,0,0,0.5)] premium-card-shadow backdrop-blur-md"
+      className="evidence-box group border-gold-primary/30 mt-6 md:mt-12 mb-6 md:mb-8 bg-gradient-to-br from-black/60 to-[#011412]/80 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden border shadow-[0_30px_60px_rgba(0,0,0,0.5)] premium-card-shadow backdrop-blur-md"
     >
-      <div className="py-6 px-10 bg-gold-primary/[0.05] border-b border-gold-primary/20 flex justify-between items-center">
-        <div className="flex items-center gap-5">
-          <div className="w-10 h-10 rounded-xl bg-gold-primary/10 flex items-center justify-center border border-gold-primary/20">
-            <Star size={16} className="text-gold-primary animate-pulse" fill="currentColor" />
+      <div className="py-4 md:py-6 px-6 md:px-10 bg-gold-primary/[0.05] border-b border-gold-primary/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4 md:gap-5">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gold-primary/10 flex items-center justify-center border border-gold-primary/20">
+            <Star size={14} className="text-gold-primary animate-pulse" fill="currentColor" />
           </div>
           <div className="flex flex-col">
-            <span className="text-[11px] font-black text-gold-primary uppercase tracking-[0.4em] font-outfit">
+            <span className="text-[9px] md:text-[11px] font-black text-gold-primary uppercase tracking-[0.2em] md:tracking-[0.4em] font-outfit">
               {type === 'quran' ? 'Divine Revelation' : 'Prophetic Authority'}
             </span>
-            <span className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
+            <span className="text-[7px] md:text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
               Authenticated Evidence
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-between">
           {type === 'quran' && (
             <button
               onClick={toggleAudio}
               className={cn(
-                "flex items-center gap-2 px-5 py-2.5 rounded-full border transition-all font-outfit text-[10px] font-black uppercase tracking-widest",
+                "flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-full border transition-all font-outfit text-[8px] md:text-[10px] font-black uppercase tracking-widest",
                 isPlaying
                   ? "bg-gold-primary text-black border-gold-primary shadow-[0_0_20px_rgba(229,192,111,0.4)]"
                   : "bg-white/5 text-white/40 border-white/10 hover:border-gold-primary/40 hover:text-gold-primary"
               )}
             >
-              {isPlaying ? <Pause size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
+              {isPlaying ? <Pause size={8} fill="currentColor" /> : <Play size={8} fill="currentColor" />}
               {isPlaying ? 'Reciting' : 'Listen'}
             </button>
           )}
-          <div className="flex items-center gap-3 bg-white/5 px-5 py-2.5 rounded-full border border-white/10 group/ref relative">
+          <div className="flex items-center gap-2 md:gap-3 bg-white/5 px-4 md:px-5 py-2 md:py-2.5 rounded-full border border-white/10 group/ref relative">
             <button
               onClick={() => onSelectReference(reference)}
-              className="text-[11px] font-black text-white/40 tracking-wider font-inter hover:text-gold-primary transition-colors flex items-center gap-2"
+              className="text-[9px] md:text-[11px] font-black text-white/40 tracking-wider font-inter hover:text-gold-primary transition-colors flex items-center gap-2"
             >
-              {reference}
-              <Scroll size={10} className="opacity-0 group-hover/ref:opacity-100 transition-opacity" />
+              {beautifySource(reference)}
+              <Scroll size={8} className="opacity-0 group-hover/ref:opacity-100 transition-opacity" />
             </button>
           </div>
         </div>
       </div>
-      <div className="p-12 relative overflow-hidden">
+      <div className="p-6 md:p-12 relative overflow-hidden">
         {/* Subtle Geometric Watermark */}
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center">
-          <NoorLogo size={350} className="scale-125 rotate-12" />
+          <NoorLogo size={window.innerWidth < 768 ? 200 : 350} className="scale-125 rotate-12" />
         </div>
 
         {loading ? (
-          <div className="flex flex-col gap-4 py-4">
-            <div className="h-8 bg-white/5 animate-pulse rounded-xl w-full" />
-            <div className="h-4 bg-white/5 animate-pulse rounded-xl w-3/4" />
+          <div className="flex flex-col gap-3 py-2">
+            <div className="h-6 bg-white/5 animate-pulse rounded-lg w-full" />
+            <div className="h-3 bg-white/5 animate-pulse rounded-lg w-3/4" />
           </div>
         ) : (
-          <div className="space-y-8 relative z-10">
+          <div className="space-y-6 md:space-y-8 relative z-10">
             {dynamicArabic && (
-              <div dir="rtl" className="text-right arabic-text text-4xl text-gold-primary leading-loose pb-8 border-b border-white/5">
+              <div dir="rtl" className="text-right arabic-text text-2xl md:text-4xl text-gold-primary leading-loose pb-6 md:pb-8 border-b border-white/5">
                 {dynamicArabic}
               </div>
             )}
-            <div className="text-[22px] text-white/90 font-medium leading-[2.2] italic border-l-4 border-gold-primary/40 pl-10 font-outfit antialiased">
+            <div className="text-base md:text-[22px] text-white/90 font-medium leading-relaxed md:leading-[2.2] italic border-l-2 md:border-l-4 border-gold-primary/40 pl-6 md:pl-10 font-outfit antialiased">
               "{displayTranslation || "Divine wisdom is being fetched..."}"
             </div>
           </div>
@@ -320,12 +345,12 @@ const ScholarEvidence = ({ type, translation, reference, apiUrl, onSelectReferen
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 4, opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="absolute bottom-0 left-0 right-0 overflow-hidden flex items-end gap-[1px] px-8"
+              className="absolute bottom-0 left-0 right-0 overflow-hidden flex items-end gap-[1px] px-6 md:px-8"
             >
-              {[...Array(80)].map((_, i) => (
+              {[...Array(window.innerWidth < 768 ? 40 : 80)].map((_, i) => (
                 <motion.div
                   key={i}
-                  animate={{ height: [2, Math.random() * 15 + 2, 2] }}
+                  animate={{ height: [2, Math.random() * (window.innerWidth < 768 ? 10 : 15) + 2, 2] }}
                   transition={{ repeat: Infinity, duration: 0.4 + Math.random(), ease: "easeInOut" }}
                   className="flex-1 bg-gold-primary/30 rounded-t-full"
                 />
@@ -363,27 +388,27 @@ const IsnadChain = ({ reference, apiUrl, onClose }: { reference: string, apiUrl:
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-12 bg-black/60 backdrop-blur-3xl"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-12 bg-black/80 backdrop-blur-3xl"
     >
-      <div className="bg-[#011412] border border-gold-primary/30 rounded-[4rem] w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col shadow-[0_100px_200px_rgba(0,0,0,0.8)]">
-        <div className="p-12 border-b border-white/5 flex justify-between items-center bg-gold-primary/[0.02]">
+      <div className="bg-[#011412] border border-gold-primary/30 rounded-[2rem] md:rounded-[4rem] w-full max-w-4xl h-full md:max-h-[80vh] overflow-hidden flex flex-col shadow-[0_100px_200px_rgba(0,0,0,0.8)]">
+        <div className="p-6 md:p-12 border-b border-white/5 flex justify-between items-center bg-gold-primary/[0.02]">
           <div>
-            <h3 className="text-3xl font-black text-white font-outfit uppercase tracking-tighter">Scholarly Isnad (Chain)</h3>
-            <p className="text-gold-primary/60 text-[12px] font-bold uppercase tracking-[0.4em] mt-2">Authenticity Transmission for [{reference}]</p>
+            <h3 className="text-xl md:text-3xl font-black text-white font-outfit uppercase tracking-tighter">Scholarly Isnad</h3>
+            <p className="text-gold-primary/60 text-[9px] md:text-[12px] font-bold uppercase tracking-[0.2em] md:tracking-[0.4em] mt-1 md:mt-2 truncate max-w-[200px] md:max-w-none">Authenticity for [{reference}]</p>
           </div>
-          <button onClick={onClose} className="p-4 rounded-full bg-white/5 text-white/40 hover:text-white transition-all">
-            <X size={24} />
+          <button onClick={onClose} className="p-3 md:p-4 rounded-full bg-white/5 text-white/40 hover:text-white transition-all">
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar p-16 space-y-0 relative">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-6 md:p-16 space-y-0 relative">
           {/* Timeline Line */}
-          <div className="absolute left-24 top-24 bottom-24 w-[2px] bg-gradient-to-b from-gold-primary/40 via-gold-primary/10 to-transparent shadow-[0_0_10px_rgba(229,192,111,0.2)]" />
+          <div className="absolute left-10 md:left-24 top-10 md:top-24 bottom-10 md:bottom-24 w-[1px] md:w-[2px] bg-gradient-to-b from-gold-primary/40 via-gold-primary/10 to-transparent shadow-[0_0_10px_rgba(229,192,111,0.2)]" />
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-64 space-y-6">
-              <div className="w-12 h-12 border-4 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin" />
-              <span className="text-gold-primary/40 text-[11px] font-black uppercase tracking-widest">Verifying Chains...</span>
+            <div className="flex flex-col items-center justify-center h-64 space-y-4 md:space-y-6">
+              <div className="w-8 h-8 md:w-12 md:h-12 border-3 md:border-4 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin" />
+              <span className="text-gold-primary/40 text-[9px] md:text-[11px] font-black uppercase tracking-widest">Verifying Chains...</span>
             </div>
           ) : chain.map((narrator, i) => (
             <motion.div
@@ -391,80 +416,76 @@ const IsnadChain = ({ reference, apiUrl, onClose }: { reference: string, apiUrl:
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="relative pl-32 pb-20 last:pb-0 group"
+              className="relative pl-16 md:pl-32 pb-12 md:pb-20 last:pb-0 group"
             >
               {/* Dot */}
-              <div className="absolute left-[89px] top-2 w-4 h-4 rounded-full bg-[#011412] border-2 border-gold-primary group-hover:scale-150 transition-transform shadow-[0_0_10px_rgba(229,192,111,0.5)] z-10" />
+              <div className="absolute left-[37px] md:left-[89px] top-1 md:top-2 w-3 h-3 md:w-4 md:h-4 rounded-full bg-[#011412] border-[1.5px] md:border-2 border-gold-primary group-hover:scale-150 transition-transform shadow-[0_0_10px_rgba(229,192,111,0.5)] z-10" />
 
-              <div className="bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] group-hover:border-gold-primary/30 transition-all">
-                <div className="flex justify-between items-start">
+              <div className="bg-white/[0.02] border border-white/5 p-4 md:p-8 rounded-xl md:rounded-[2.5rem] group-hover:border-gold-primary/30 transition-all">
+                <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                   <div>
-                    <h4 className="text-[20px] font-black text-white/90 group-hover:text-gold-primary transition-colors font-outfit">{narrator.name}</h4>
-                    <p className="text-gold-primary/40 text-[10px] font-black uppercase tracking-widest mt-1">{narrator.role}</p>
+                    <h4 className="text-base md:text-[20px] font-black text-white/90 group-hover:text-gold-primary transition-colors font-outfit">{narrator.name}</h4>
+                    <p className="text-gold-primary/40 text-[8px] md:text-[10px] font-black uppercase tracking-widest mt-0.5 md:mt-1">{narrator.role}</p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-white/20 text-[11px] font-bold uppercase tracking-widest bg-white/5 px-4 py-1 rounded-full">{narrator.period}</span>
-                    <p className="text-white/10 text-[9px] font-bold uppercase tracking-widest mt-2">{narrator.location}</p>
+                  <div className="text-left md:text-right w-full md:w-auto border-t md:border-t-0 border-white/5 pt-3 md:pt-0">
+                    <span className="text-white/20 text-[9px] md:text-[11px] font-bold uppercase tracking-widest bg-white/5 px-3 md:px-4 py-1 rounded-full">{narrator.period}</span>
+                    <p className="text-white/10 text-[8px] md:text-[9px] font-bold uppercase tracking-widest mt-1 md:mt-2">{narrator.location}</p>
                   </div>
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
-
-        <div className="p-10 bg-gold-primary/[0.05] text-center border-t border-white/5">
-          <p className="text-gold-primary/30 text-[10px] font-black uppercase tracking-[0.4em]">Integrated authentication from primary scholarly databases</p>
-        </div>
       </div>
     </motion.div>
   );
 };
 
-const ScholarDeepDive = ({ msg, renderContent, onClose }: { msg: Message, renderContent: (m: Message, full?: boolean) => any, onClose: () => void }) => {
+const ScholarDeepDive = ({ msg, renderContent, onClose }: { msg: Message, renderContent: (m: Message, full?: boolean, showLoadMore?: boolean) => any, onClose: () => void }) => {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[150] flex items-center justify-center p-20 bg-black/80 backdrop-blur-[100px]"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-20 bg-black/90 backdrop-blur-[40px] md:backdrop-blur-[100px]"
     >
       <motion.div
         initial={{ y: 50, scale: 0.95 }}
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 50, scale: 0.95 }}
-        className="w-full max-w-7xl h-full max-h-[90vh] bg-[#011412] border border-gold-primary/30 rounded-[5rem] flex flex-col overflow-hidden shadow-[0_150px_300px_rgba(0,0,0,0.95)]"
+        className="w-full max-w-7xl h-full max-h-screen md:max-h-[90vh] bg-[#011412] border border-gold-primary/30 rounded-[2rem] md:rounded-[5rem] flex flex-col overflow-hidden shadow-[0_150px_300px_rgba(0,0,0,0.95)]"
       >
-        <div className="h-32 px-20 border-b border-white/5 flex items-center justify-between bg-gold-primary/[0.03]">
-          <div className="flex items-center gap-8">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-gold-primary/20 flex items-center justify-center text-gold-primary">
-              <NoorLogo size={32} />
+        <div className="h-24 md:h-32 px-6 md:px-20 border-b border-white/5 flex items-center justify-between bg-gold-primary/[0.03]">
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.5rem] bg-gold-primary/20 flex items-center justify-center text-gold-primary">
+              <NoorLogo size={window.innerWidth < 768 ? 24 : 32} />
             </div>
             <div className="flex flex-col">
-              <span className="text-2xl font-black text-white uppercase tracking-tighter">Scholarly Deep Dive</span>
-              <span className="text-[11px] font-bold text-gold-primary/60 uppercase tracking-[0.4em] mt-1">Full Authenticated Knowledge Scroll</span>
+              <span className="text-lg md:text-2xl font-black text-white uppercase tracking-tighter">Scholarly Deep Dive</span>
+              <span className="text-[9px] md:text-[11px] font-bold text-gold-primary/60 uppercase tracking-[0.2em] md:tracking-[0.4em] mt-0.5 md:mt-1">Knowledge Scroll</span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-16 h-16 rounded-full flex items-center justify-center bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
+            className="w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
           >
-            <X size={28} />
+            <X size={window.innerWidth < 768 ? 20 : 28} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar px-32 py-24 bg-gradient-to-b from-transparent to-black/20">
+        <div className="flex-1 overflow-y-auto no-scrollbar px-6 md:px-32 py-12 md:py-24 bg-gradient-to-b from-transparent to-black/20">
           <div className="max-w-5xl mx-auto">
-            <div className="mb-20 flex items-center gap-6 opacity-40">
-              <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent to-gold-primary/30" />
-              <span className="text-[12px] font-black uppercase tracking-[0.6em]">Beginning of Scholarly Consensus</span>
-              <div className="h-[2px] flex-1 bg-gradient-to-l from-transparent to-gold-primary/30" />
+            <div className="mb-12 md:mb-20 flex items-center gap-4 md:gap-6 opacity-40">
+              <div className="h-[1px] md:h-[2px] flex-1 bg-gradient-to-r from-transparent to-gold-primary/30" />
+              <span className="text-[10px] md:text-[12px] font-black uppercase tracking-[0.4em] md:tracking-[0.6em]">Consensus</span>
+              <div className="h-[1px] md:h-[2px] flex-1 bg-gradient-to-l from-transparent to-gold-primary/30" />
             </div>
 
             {renderContent(msg, true)}
 
-            <div className="mt-40 border-t border-gold-primary/10 pt-16 flex flex-col items-center text-center opacity-40 italic">
-              <p className="text-[14px] text-white/60">This scholarly scroll has been synthesized with verified sources from the Quran, authentic Hadith chains (Isnad), and classical Fiqh consensus.</p>
-              <span className="text-[11px] uppercase tracking-[0.8em] mt-6">Knowledge is Light</span>
+            <div className="mt-24 md:mt-40 border-t border-gold-primary/10 pt-10 md:pt-16 flex flex-col items-center text-center opacity-40 italic px-4">
+              <p className="text-[12px] md:text-[14px] text-white/60">This scholarly scroll has been synthesized with verified sources from the Quran, authentic Hadith chains (Isnad), and classical Fiqh consensus.</p>
+              <span className="text-[10px] md:text-[11px] uppercase tracking-[0.6em] md:tracking-[0.8em] mt-4 md:mt-6">Knowledge is Light</span>
             </div>
           </div>
         </div>
@@ -572,17 +593,92 @@ const PlaceholderRotator = () => {
   }, []);
 
   return (
-    <motion.span
-      key={index}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="absolute left-0 pointer-events-none text-white/10"
-    >
-      {placeholders[index]}
-    </motion.span>
+    <div className="relative h-full flex items-center">
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={index}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.5 }}
+          className="text-white/40 italic whitespace-nowrap truncate max-w-full text-xs md:text-base font-medium tracking-tight block"
+        >
+          {placeholders[index]}
+        </motion.span>
+      </AnimatePresence>
+    </div>
   );
 };
+
+const SidebarContent = ({
+  onSendMessage,
+  setIsSidebarOpen,
+  isLoading,
+  prayerTimes,
+  qibla
+}: {
+  onSendMessage: (q: string) => void,
+  setIsSidebarOpen: (b: boolean) => void,
+  isLoading: boolean,
+  prayerTimes: any,
+  qibla: any
+}) => (
+  <div className="flex flex-col h-full px-4 md:px-8 pt-8 md:pt-16 pb-12">
+    <div className="flex items-center gap-4 mb-12 md:mb-16 pl-2">
+      <NoorLogo size={window.innerWidth < 768 ? 32 : 38} />
+      <div className="flex flex-col min-w-0">
+        <span className="text-[14px] md:text-[16px] font-black text-white tracking-[0.2em] md:tracking-[0.3em] font-outfit uppercase truncate">Noor</span>
+        <span className="text-[8px] md:text-[9px] font-bold text-white/20 tracking-[0.4em] md:tracking-[0.6em] uppercase">Islamic AI Agent</span>
+      </div>
+    </div>
+
+    <div className="flex-1 overflow-y-auto no-scrollbar pr-2 space-y-1">
+      <SidebarCard icon={Star} title="Moral Character" desc="Daily conduct & prophetic character" onClick={() => { onSendMessage("What does Islam teach about moral character?"); setIsSidebarOpen(false); }} />
+      <SidebarCard icon={LayoutGrid} title="Five Pillars" desc="The core obligations of faith" onClick={() => { onSendMessage("Explain the five pillars of Islam"); setIsSidebarOpen(false); }} />
+      <SidebarCard icon={Moon} title="Ramadan Guidance" desc="Significance & fasting protocols" onClick={() => { onSendMessage("Tell me about Ramadan significance"); setIsSidebarOpen(false); }} />
+      <SidebarCard icon={Sun} title="Daily Supplications" desc="Prophetic Duas for purity" onClick={() => { onSendMessage("What are the best daily duas?"); setIsSidebarOpen(false); }} />
+      <SidebarCard icon={Book} title="Hadith Authentication" desc="Verified chains of transmission" onClick={() => { onSendMessage("How are Hadiths authenticated?"); setIsSidebarOpen(false); }} />
+      <SidebarCard icon={Scroll} title="Quranic Exegesis" desc="Classical Tafseer & insights" onClick={() => { onSendMessage("Tell me about Quranic interpretation"); setIsSidebarOpen(false); }} />
+
+      {/* Real-time Islamic Widgets */}
+      <div className="mt-8 md:mt-12 space-y-4 md:space-y-6">
+        <div className="px-4 md:px-6 py-2">
+          <span className="text-[9px] md:text-[10px] font-black text-gold-primary/40 tracking-[0.4em] md:tracking-[0.5em] uppercase">Real-time Sacred Data</span>
+        </div>
+
+        {/* Prayer Times Widget */}
+        <div className="bg-white/[0.02] border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 mx-2 shadow-xl">
+          {isLoading ? <ScholarlySkeleton /> : prayerTimes ? (
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              {Object.entries(prayerTimes.timings || {}).filter(([k]) => ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(k)).map(([name, time]: [any, any]) => (
+                <div key={name} className="flex flex-col p-2.5 md:p-3 bg-white/[0.03] rounded-xl border border-white/5">
+                  <span className="text-[8px] md:text-[9px] font-black text-white/30 uppercase tracking-widest">{name}</span>
+                  <span className="text-[12px] md:text-[14px] font-bold text-gold-primary">{time}</span>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-[10px] text-white/20 text-center py-4">Prayer data pending...</div>}
+        </div>
+
+        {/* Qibla Direction Widget */}
+        <div className="bg-white/[0.02] border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 mx-2 flex items-center gap-4 md:gap-8 shadow-xl overflow-hidden">
+          {isLoading ? <div className="w-full h-12 bg-white/5 animate-pulse rounded-xl" /> : qibla?.bearing ? (
+            <>
+              <div className="shrink-0 scale-75 md:scale-100"><QiblaCompass bearing={qibla?.bearing || 0} direction={qibla?.direction || ''} /></div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[11px] md:text-[14px] font-black text-white/90 font-outfit uppercase tracking-wider truncate">Qibla</span>
+                <div className="flex items-baseline gap-1 md:gap-2">
+                  <span className="text-[16px] md:text-[20px] font-black text-gold-primary tracking-tighter">{qibla.bearing.toFixed(0)}°</span>
+                  <span className="text-[10px] md:text-[12px] font-bold text-white/40 uppercase tracking-widest truncate">{qibla.direction}</span>
+                </div>
+              </div>
+            </>
+          ) : <div className="flex-1 text-[10px] text-white/20 text-center py-4">Qibla pending...</div>}
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5010' }) => {
   // Initialize messages from LocalStorage if available
@@ -660,7 +756,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
   const [isAmbiencePlaying, setIsAmbiencePlaying] = useState(false);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const [pulseIntensity, setPulseIntensity] = useState(0);
-  const [isDemoMode, setIsDemoMode] = useState(true); // Forced Local Mode for Pitch
+  const [isDemoMode, setIsDemoMode] = useState(false); // Forced Local Mode for Pitch
 
   // --- Resilience Engine Mapping ---
   // If the last message contains the "locally generated" marker, we show Local Resilient status
@@ -767,8 +863,18 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  const lastMessageCount = useRef(messages.length);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = chatContainerRef.current;
+    if (container) {
+      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+      const isNewMessage = messages.length > lastMessageCount.current;
+
+      if (isAtBottom || isNewMessage) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+      lastMessageCount.current = messages.length;
+    }
   }, [messages, isTyping]);
 
   useEffect(() => {
@@ -1128,6 +1234,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
     }
   };
 
+
   const renderMessageContent = (msg: Message, forceFull = false, showLoadMore = true) => {
     const isAI = msg.sender === 'ai' || msg.sender === 'agent';
     const text = msg.text;
@@ -1145,7 +1252,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
 
           if (quranMatch || hadithMatch) {
             let rawTranslation = block.replace(quranRegex, "").replace(hadithRegex, "").trim();
-            
+
             // Aggressively strip circular labels and artifacts
             let cleanTranslation = rawTranslation
               .replace(/(?:Divine Revelation|Prophetic Authority|Authentic Evidence|Translation(?:\s*\([^)]*\))?)\s*[:\-]*\s*/gi, "")
@@ -1163,7 +1270,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-gold-primary/40 group-hover/source:bg-gold-primary transition-colors shadow-[0_0_8px_rgba(229,192,111,0.4)]" />
                   <span className="text-[13px] font-black text-white/50 group-hover/source:text-gold-primary transition-colors tracking-[0.1em] uppercase font-outfit">
-                    {ref}
+                    {beautifySource(ref)}
                   </span>
                 </motion.div>
               );
@@ -1196,7 +1303,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                   .replace(/\*\*/g, "")
                   .replace(/^[\s\-\•\.\*\|]+/, "")
                   .trim();
-                
+
                 if (!lineTrimmed) return null;
 
                 const scriptType = detectScript(lineTrimmed);
@@ -1204,7 +1311,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                   let content = lineTrimmed.replace(/^(?:arabic|urdu):/i, "").trim();
                   const translitMatch = content.match(/\(([^)]+)\)$/);
                   if (translitMatch) content = content.replace(translitMatch[0], "").trim();
-                  return <div key={idx} dir="rtl" className="text-right py-4 arabic-text text-5xl text-gold-primary border-b border-gold-primary/5">{content}</div>;
+                  return <div key={idx} dir="rtl" className="text-right py-2 md:py-4 arabic-text text-3xl md:text-5xl text-gold-primary border-b border-gold-primary/5">{content}</div>;
                 }
 
                 if (/^\[.+\]$/.test(lineTrimmed)) {
@@ -1212,11 +1319,11 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     <motion.div
                       key={idx}
                       whileHover={{ x: 5 }}
-                      className="flex items-center gap-3 py-3 px-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-gold-primary/30 transition-all group/source cursor-default"
+                      className="flex items-center gap-3 py-2.5 md:py-3.5 px-4 md:px-6 rounded-xl md:rounded-2xl bg-white/[0.03] border border-white/5 hover:border-gold-primary/30 transition-all group/source cursor-default"
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-gold-primary/40 group-hover/source:bg-gold-primary transition-colors shadow-[0_0_8px_rgba(229,192,111,0.4)]" />
-                      <span className="text-[13px] font-black text-white/50 group-hover/source:text-gold-primary transition-colors tracking-[0.1em] uppercase font-outfit">
-                        {lineTrimmed.slice(1, -1)}
+                      <span className="text-[11px] md:text-[13px] font-black text-white/50 group-hover/source:text-gold-primary transition-colors tracking-[0.1em] uppercase font-outfit">
+                        {beautifySource(lineTrimmed.slice(1, -1))}
                       </span>
                     </motion.div>
                   );
@@ -1225,14 +1332,20 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                 if (/^\(.*\)$/.test(lineTrimmed)) return null;
                 return (
                   <p key={idx} className={cn(
-                    "text-white/80 leading-[1.8] font-medium mb-4 last:mb-0 antialiased",
-                    forceFull ? "text-[24px]" : "text-[18px]"
+                    "text-white/80 leading-relaxed md:leading-[1.8] font-medium mb-3 md:mb-4 last:mb-0 antialiased",
+                    forceFull ? "text-xl md:text-[24px]" : "text-base md:text-[18px]"
                   )}>
                     {lineTrimmed.split(/(\[[^\]]+\])/g).map((part, j) => {
                       if (part.startsWith('[') && part.endsWith(']')) {
-                        return <span key={j} className="text-gold-primary/60 font-bold px-1.5 py-0.5 bg-gold-primary/5 rounded border border-gold-primary/10 mx-0.5 whitespace-nowrap">{part}</span>;
+                        return <span key={j} className="text-gold-primary/60 font-bold px-1.5 py-0.5 bg-gold-primary/5 rounded border border-gold-primary/10 mx-0.5 whitespace-nowrap text-[10px] md:text-inherit">{beautifySource(part.slice(1, -1))}</span>;
                       }
-                      return part;
+                      // Handle italicized words like *Taqwa*
+                      return part.split(/(\*[^*]+\*)/g).map((subPart, k) => {
+                        if (subPart.startsWith('*') && subPart.endsWith('*')) {
+                          return <span key={k} className="text-gold-primary font-serif italic">{subPart.slice(1, -1)}</span>;
+                        }
+                        return subPart;
+                      });
                     })}
                   </p>
                 );
@@ -1262,14 +1375,14 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
           <div className="space-y-12 relative">
             {/* Scholarly Authentication Seal */}
             {sourceCount > 0 && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-gold-primary/5 border border-gold-primary/10 mb-8 relative overflow-hidden group"
+                className="inline-flex items-center gap-2 md:gap-3 px-4 md:px-6 py-1.5 md:py-2 rounded-full bg-gold-primary/5 border border-gold-primary/10 mb-6 md:mb-8 relative overflow-hidden group"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                <div className="w-2 h-2 rounded-full bg-gold-primary shadow-[0_0_10px_rgba(229,192,111,0.5)]" />
-                <span className="text-[11px] font-black text-gold-primary/80 uppercase tracking-[0.3em] font-outfit">
+                <div className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full bg-gold-primary shadow-[0_0_10px_rgba(229,192,111,0.5)]" />
+                <span className="text-[9px] md:text-[11px] font-black text-gold-primary/80 uppercase tracking-[0.2em] md:tracking-[0.3em] font-outfit">
                   Verified from {sourceCount} Scholarly Foundations
                 </span>
               </motion.div>
@@ -1338,7 +1451,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                       initial={{ opacity: 0, x: -15 }}
                       animate={{ opacity: 1, x: 0 }}
                       className={cn(
-                        "flex items-center gap-4 py-3.5 px-7 rounded-r-2xl border-l-4 w-full mt-12 mb-6 premium-card-shadow transition-all duration-500",
+                        "flex items-center gap-3 md:gap-4 py-2.5 md:py-3.5 px-4 md:px-7 rounded-xl md:rounded-r-2xl border-l-4 w-full mt-8 md:mt-12 mb-4 md:mb-6 premium-card-shadow transition-all duration-500",
                         sectionStyles[sectionNum] || 'bg-white/5 border-white/10'
                       )}
                     >
@@ -1354,8 +1467,8 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
                         className={cn(
-                          "ml-4 p-8 rounded-[2rem] bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl premium-card-shadow",
-                          (sectionNum === '4' || sectionNum === '5' || sectionTitle === 'Sacred Foundations') ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "space-y-6"
+                          "ml-0 md:ml-4 p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl premium-card-shadow",
+                          (sectionNum === '4' || sectionNum === '5' || sectionTitle === 'Sacred Foundations') ? "grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6" : "space-y-4 md:space-y-6"
                         )}
                       >
                         {renderBlocks(contentPart.split('\n').filter(b => b.trim()))}
@@ -1368,14 +1481,14 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
             })}
 
             {hasMore && (
-              <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 className="pt-8 text-center"
               >
-                <button 
-                  onClick={() => setPageState(prev => ({ ...prev, [msg.id]: blocksToShow + 3 }))}
-                  className="px-10 py-4 rounded-full bg-gold-primary/5 border border-gold-primary/20 text-gold-primary font-black uppercase text-[11px] tracking-[0.3em] hover:bg-gold-primary/10 transition-all active:scale-95 shadow-[0_10px_30px_rgba(229,192,111,0.1)]"
+                <button
+                  onClick={() => setPageState(prev => ({ ...prev, [msg.id]: (pageState[msg.id] || 2) + 3 }))}
+                  className="px-6 md:px-10 py-3 md:py-4 rounded-full bg-gold-primary/5 border border-gold-primary/20 text-gold-primary font-black uppercase text-[9px] md:text-[11px] tracking-[0.2em] md:tracking-[0.3em] hover:bg-gold-primary/10 transition-all active:scale-95 shadow-[0_10px_30px_rgba(229,192,111,0.1)]"
                 >
                   Illuminate Deeper Knowledge
                 </button>
@@ -1405,8 +1518,10 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
     return <div className="text-[18px] font-medium text-white/90 leading-relaxed bg-white/5 p-6 rounded-3xl border border-white/10">{text}</div>;
   };
 
+  // --- Sub-Components ---
+
   return (
-    <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-12 bg-[#011412]">
+    <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-0 md:p-12 bg-[#011412]">
       <SanctuaryBackground isActive={isAmbiencePlaying} />
 
       {/* High-Fidelity Realistic Background */}
@@ -1417,7 +1532,6 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
           className="w-full h-full object-cover mix-blend-screen opacity-100"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-[#011412]/60 via-transparent to-[#011412]/30" />
-
       </div>
 
       {/* Main Scholarly Station */}
@@ -1437,156 +1551,101 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
           )}
         </AnimatePresence>
 
-        {/* Drawer Menu Sidebar */}
-        <motion.div
-          animate={{
-            x: isSidebarOpen ? 0 : -440,
-            opacity: isSidebarOpen ? 1 : 0
-          }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute left-0 top-0 bottom-0 w-[400px] h-full bg-black/40 backdrop-blur-[40px] border-r border-white/5 overflow-hidden z-40 rounded-l-[4rem]"
-        >
-          <div className="w-[400px] flex flex-col px-8 pt-16 pb-12 h-full">
-            <div className="flex items-center gap-4 mb-16 pl-2">
-              <NoorLogo size={38} />
-              <div className="flex flex-col min-w-0">
-                <span className="text-[16px] font-black text-white tracking-[0.3em] font-outfit uppercase truncate">Noor</span>
-                <span className="text-[9px] font-bold text-white/20 tracking-[0.6em] uppercase">Islamic AI</span>
-              </div>
-            </div>
+        {/* Desktop Sidebar */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 420, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="relative z-30 h-full border-r border-white/5 bg-black/40 backdrop-blur-3xl hidden lg:block"
+            >
+              <SidebarContent
+                onSendMessage={handleSendMessage}
+                setIsSidebarOpen={setIsSidebarOpen}
+                isLoading={isLoadingIslamicData}
+                prayerTimes={prayerTimes}
+                qibla={qibla}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <div className="flex-1 overflow-y-auto no-scrollbar pr-2">
-              <SidebarCard icon={Star} title="Islam & Moral Character" desc="WHAT DOES ISLAM TEACH ABOUT MORAL CHARACTER AND DAILY CONDUCT?" onClick={() => { handleSendMessage("What does Islam teach about moral character and how should a Muslim conduct themselves in daily life?"); setIsSidebarOpen(false); }} />
-              <SidebarCard icon={LayoutGrid} title="The Five Pillars" desc="EXPLAIN THE FIVE PILLARS AND WHY THEY ARE OBLIGATORY FOR EVERY MUSLIM" onClick={() => { handleSendMessage("Explain the five pillars of Islam and why they are considered obligatory for every Muslim."); setIsSidebarOpen(false); }} />
-              <SidebarCard icon={Moon} title="Ramadan Essentials" desc="SIGNIFICANCE OF RAMADAN & FAST PROTOCOLS" onClick={() => { handleSendMessage("Tell me about Ramadan significance"); setIsSidebarOpen(false); }} />
-              <SidebarCard icon={Sun} title="Daily Dua & Dhikr" desc="PROPHETIC SUPPLICATIONS FOR HEART PURITY" onClick={() => { handleSendMessage("What are the best daily duas?"); setIsSidebarOpen(false); }} />
-              <SidebarCard icon={Book} title="Hadith Collections" desc="AUTHENTIC CHAINS FROM THE NINE BOOKS" onClick={() => { handleSendMessage("How are Hadiths authenticated?"); setIsSidebarOpen(false); }} />
-              <SidebarCard icon={Scroll} title="Quran Tafseer" desc="CLASSICAL EXEGESIS & SCHOLARLY INSIGHTS" onClick={() => { handleSendMessage("Tell me about Quranic interpretation"); setIsSidebarOpen(false); }} />
-
-              {/* Real-time Islamic Widgets */}
-              <div className="mt-12 space-y-6">
-                <div className="px-6 py-2">
-                  <span className="text-[10px] font-black text-gold-primary/40 tracking-[0.5em] uppercase">Real-time Sacred Data</span>
-                </div>
-
-                {/* Prayer Times Widget */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-8 mx-2 shadow-xl"
-                >
-                  {isLoadingIslamicData ? (
-                    <ScholarlySkeleton />
-                  ) : prayerTimes ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      {Object.entries(prayerTimes.timings || {}).filter(([k]) => ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(k)).map(([name, time]: [any, any]) => (
-                        <div key={name} className="flex flex-col p-3 bg-white/[0.03] rounded-xl border border-white/5">
-                          <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{name}</span>
-                          <span className="text-[14px] font-bold text-gold-primary">{time}</span>
-                        </div>
-                      ))}
+        {/* Mobile Sidebar Overlay */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsSidebarOpen(false)}
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+              />
+              <motion.div
+                initial={{ x: -300, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -300, opacity: 0 }}
+                className="fixed inset-y-0 left-0 z-50 w-[85%] max-w-sm bg-black/90 backdrop-blur-3xl border-r border-white/10 lg:hidden shadow-2xl overflow-hidden"
+              >
+                <div className="flex flex-col h-full">
+                  <div className="p-6 border-b border-white/10 flex justify-between items-center bg-gold-primary/[0.02]">
+                    <div className="flex items-center gap-3">
+                      <NoorLogo size={32} />
+                      <span className="text-lg font-black text-white tracking-widest font-outfit uppercase">Noor</span>
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 space-y-3">
-                      <MapPin size={24} className="text-white/10" />
-                      <div className="text-[11px] text-white/20 uppercase tracking-widest font-bold">Location data unavailable</div>
-                      <button onClick={() => window.location.reload()} className="text-[9px] text-gold-primary font-black uppercase underline tracking-widest">Retry Access</button>
-                    </div>
-                  )}
-                </motion.div>
-
-                {/* Qibla Direction Widget */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-8 mx-2 flex items-center gap-8 shadow-xl"
-                >
-                  {isLoadingIslamicData ? (
-                    <div className="flex items-center gap-6 w-full">
-                      <div className="w-16 h-16 rounded-full bg-white/5 animate-pulse" />
-                      <div className="flex-1 h-12 bg-white/5 rounded-2xl animate-pulse" />
-                    </div>
-                  ) : qibla?.bearing ? (
-                    <>
-                      <QiblaCompass bearing={qibla?.bearing || 0} direction={qibla?.direction || ''} />
-                      <div className="flex flex-col">
-                        <span className="text-[14px] font-black text-white/90 font-outfit uppercase tracking-wider">Qibla Direction</span>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-[20px] font-black text-gold-primary tracking-tighter">
-                            {qibla.bearing.toFixed(1)}°
-                          </span>
-                          <span className="text-[12px] font-bold text-white/40 uppercase tracking-widest">{qibla.direction}</span>
-                        </div>
-                        <span className="text-[9px] font-bold text-gold-primary/40 uppercase tracking-[0.2em] mt-1">Facing Holy Kaaba (Makkah)</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex-1 text-[11px] text-white/20 font-bold uppercase tracking-widest text-center py-4">
-                      Qibla vision pending...
-                    </div>
-                  )}
-                </motion.div>
-
-                {/* Hijri Vision Interactive Timeline Trigger */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  onClick={() => { setIsTimelineOpen(true); setIsSidebarOpen(false); }}
-                  className="bg-gold-primary/10 border border-gold-primary/30 rounded-[2.5rem] p-8 mx-2 mt-4 cursor-pointer group relative overflow-hidden"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                      <div className="w-12 h-12 rounded-2xl bg-gold-primary/20 flex items-center justify-center text-gold-primary">
-                        <Calendar size={24} />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[14px] font-black text-white/90 font-outfit uppercase tracking-wider">Hijri Vision</span>
-                        <span className="text-[10px] font-bold text-gold-primary/60 uppercase tracking-widest">Interactive Sacred Timeline</span>
-                      </div>
-                    </div>
-                    <ArrowRight size={20} className="text-gold-primary group-hover:translate-x-2 transition-transform" />
+                    <button onClick={() => setIsSidebarOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-white/40 hover:text-white transition-all"><X size={20} /></button>
                   </div>
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+                  <div className="flex-1 overflow-y-auto">
+                    <SidebarContent
+                      onSendMessage={handleSendMessage}
+                      setIsSidebarOpen={setIsSidebarOpen}
+                      isLoading={isLoadingIslamicData}
+                      prayerTimes={prayerTimes}
+                      qibla={qibla}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Chat Sanctuary Area */}
         <div className="flex-1 flex flex-col relative bg-gradient-to-br from-white/[0.015] via-white/[0.005] to-transparent w-full">
           {/* Elegant Top Header */}
-          <div className="h-28 flex items-center justify-between px-20 border-b border-white/5 bg-gradient-to-b from-white/[0.02] to-white/[0.005]">
-            <div className="flex items-center gap-6">
+          <div className="h-24 md:h-28 flex items-center justify-between px-6 md:px-20 border-b border-white/5 bg-gradient-to-b from-white/[0.02] to-white/[0.005]">
+            <div className="flex items-center gap-3 md:gap-6">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white/[0.03] border border-white/10 text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all shadow-xl group"
+                className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center bg-white/[0.03] border border-white/10 text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all shadow-xl group"
               >
-                <PanelLeft size={24} className={cn("transition-transform duration-500", !isSidebarOpen && "rotate-180")} />
+                <PanelLeft size={20} className={cn("transition-transform duration-500", !isSidebarOpen && "rotate-180")} />
               </button>
-              <div className="w-16 h-16 rounded-[1.5rem] bg-white/[0.03] border border-white/10 flex items-center justify-center text-white/20 shadow-2xl">
-                <NoorLogo size={32} />
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.5rem] bg-white/[0.03] border border-white/10 flex items-center justify-center text-white/20 shadow-2xl hidden sm:flex">
+                <NoorLogo size={28} />
               </div>
               <div className="flex flex-col">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl font-black text-white tracking-tight uppercase font-outfit">Noor Islamic Agent</span>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <span className="text-lg md:text-2xl font-black text-white tracking-tight uppercase font-outfit truncate max-w-[120px] xs:max-w-none">Noor Agent</span>
                   {/* Scholarly Engine Status Badge */}
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className={cn("px-4 py-1.5 rounded-full border flex items-center gap-2", engineBg, engineBorder)}
+                    className={cn("px-2 md:px-4 py-1 md:py-1.5 rounded-full border flex items-center gap-1 md:gap-2", engineBg, engineBorder)}
                   >
-                    <div className={cn("w-2 h-2 rounded-full animate-pulse", engineColor.replace('text', 'bg'))} />
-                    <span className={cn("text-[8px] font-black uppercase tracking-[0.4em]", engineColor)}>
+                    <div className={cn("w-1.5 h-1.5 md:w-2 md:h-2 rounded-full animate-pulse", engineColor.replace('text', 'bg'))} />
+                    <span className={cn("text-[6px] md:text-[8px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em]", engineColor)}>
                       {engineStatus}
                     </span>
                   </motion.div>
                 </div>
-                <span className="text-[11px] font-bold text-white/30 tracking-[0.4em] uppercase">Scholarly Assistant Authority (RAG 2.0)</span>
+                <span className="text-[8px] md:text-[11px] font-bold text-white/30 tracking-[0.2em] md:tracking-[0.4em] uppercase truncate">Scholarly Assistant Authority</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-8">
-              {/* Note: Prayer Pulse and Ambience Toggle removed per user request for clean UI */}
-
-              <div className="flex items-center gap-4">
-                {/* Resilience Demo Toggle (Hidden/Subtle for Pitch) */}
+            <div className="flex items-center gap-3 md:gap-8">
+              <div className="flex items-center gap-2 md:gap-4">
                 <button
                   onClick={async () => {
                     const newMode = !isDemoMode;
@@ -1597,16 +1656,16 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     } catch (e) { }
                   }}
                   className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center transition-all border",
+                    "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all border",
                     isDemoMode ? "bg-orange-400/20 border-orange-400 text-orange-400 shadow-[0_0_20px_rgba(251,146,60,0.3)]" : "bg-white/5 border-white/10 text-white/20 hover:text-white"
                   )}
                   title="Toggle Local Resilience Mode (Demo)"
                 >
-                  <Sun size={18} className={cn(isDemoMode && "animate-spin-slow")} />
+                  <Sun size={16} className={cn(isDemoMode && "animate-spin-slow")} />
                 </button>
               </div>
 
-              <span className="font-amiri text-white text-3xl tracking-widest select-none drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</span>
+              <span className="font-amiri text-white text-xl md:text-3xl tracking-widest select-none drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] hidden lg:block">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</span>
             </div>
           </div>
 
@@ -1631,7 +1690,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
           </AnimatePresence>
 
           {/* Messages Sanctuary */}
-          <div className="flex-1 overflow-y-auto no-scrollbar px-20 py-12 space-y-3 pb-96" ref={chatContainerRef}>
+          <div className="flex-1 overflow-y-auto no-scrollbar px-6 md:px-20 py-8 md:py-12 space-y-4 md:space-y-6" ref={chatContainerRef}>
             {messages.length === 1 && !isTyping && (
               <div className="flex-1 flex items-center justify-center">
                 <SanctuaryGreeting onSuggestionClick={(q) => {
@@ -1655,7 +1714,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     onMouseEnter={() => setLastAction(msg.id)}
                     onMouseLeave={() => setLastAction(null)}
                     className={cn(
-                      "w-full max-w-4xl p-12 rounded-3xl border transition-all duration-500 backdrop-blur-2xl relative group/msg",
+                      "w-full max-w-4xl p-6 md:p-12 rounded-[2rem] md:rounded-3xl border transition-all duration-500 backdrop-blur-2xl relative group/msg",
                       msg.sender === 'user'
                         ? "bg-gradient-to-br from-white/[0.08] to-white/[0.03] border-white/20 text-white ml-auto shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.3)]"
                         : "bg-gradient-to-br from-[#011412]/80 to-[#0a1a17]/60 border-gold-primary/30 pb-16 shadow-[0_20px_50px_rgba(0,0,0,0.4)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.5)] hover:border-gold-primary/50"
@@ -1665,17 +1724,17 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     {msg.sender === 'ai' && (
                       <div className="mt-8 space-y-4">
                         {msg.thoughts && (
-                          <div className="px-6">
+                          <div className="px-2 md:px-6">
                             <button
                               onClick={() => setExpandedThoughts(prev => ({ ...prev, [msg.id]: !prev[msg.id] }))}
                               className={cn(
-                                "flex items-center gap-3 px-6 py-3 rounded-full border transition-all text-[11px] font-black uppercase tracking-[0.3em] font-outfit",
+                                "flex items-center gap-3 px-4 md:px-6 py-2.5 md:py-3 rounded-full border transition-all text-[9px] md:text-[11px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] font-outfit",
                                 expandedThoughts[msg.id]
                                   ? "bg-gold-primary text-black border-gold-primary shadow-[0_10px_30px_rgba(229,192,111,0.3)]"
                                   : "bg-white/5 text-gold-primary/60 border-gold-primary/20 hover:border-gold-primary/50 hover:bg-gold-primary/5"
                               )}
                             >
-                              <Scroll size={14} className={cn(expandedThoughts[msg.id] && "animate-pulse")} />
+                              <Scroll size={12} className={cn(expandedThoughts[msg.id] && "animate-pulse")} />
                               {expandedThoughts[msg.id] ? "Conceal Deliberation" : "View Scholarly Deliberation"}
                             </button>
 
@@ -1687,12 +1746,12 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                                   exit={{ height: 0, opacity: 0, marginTop: 0 }}
                                   className="overflow-hidden"
                                 >
-                                  <div className="p-10 rounded-[2.5rem] bg-gold-primary/[0.03] border border-gold-primary/10 relative">
+                                  <div className="p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] bg-gold-primary/[0.03] border border-gold-primary/10 relative">
                                     <div className="absolute top-6 left-8 flex items-center gap-3 opacity-30">
                                       <div className="w-2 h-2 rounded-full bg-gold-primary animate-pulse" />
-                                      <span className="text-[10px] font-black text-gold-primary uppercase tracking-[0.5em]">Internal Scholarly Reasoning</span>
+                                      <span className="text-[8px] md:text-[10px] font-black text-gold-primary uppercase tracking-[0.3em] md:tracking-[0.5em]">Internal Scholarly Reasoning</span>
                                     </div>
-                                    <div className="mt-12 text-[14px] text-white/50 leading-relaxed font-medium italic font-outfit whitespace-pre-wrap pl-4 border-l-2 border-gold-primary/20">
+                                    <div className="mt-10 md:mt-12 text-[12px] md:text-[14px] text-white/50 leading-relaxed font-medium italic font-outfit whitespace-pre-wrap pl-4 border-l-2 border-gold-primary/20">
                                       {msg.thoughts}
                                     </div>
                                   </div>
@@ -1704,23 +1763,23 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
 
                         <motion.div
                           initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: lastAction === msg.id ? 1 : 0, y: lastAction === msg.id ? 0 : 5 }}
-                          className="absolute bottom-6 right-10 flex items-center gap-3 bg-black/40 backdrop-blur-3xl rounded-full p-2 border border-white/5 shadow-2xl z-20"
+                          animate={{ opacity: (lastAction === msg.id || window.innerWidth < 768) ? 1 : 0, y: (lastAction === msg.id || window.innerWidth < 768) ? 0 : 5 }}
+                          className="absolute bottom-4 right-4 md:bottom-6 md:right-10 flex items-center gap-2 md:gap-3 bg-black/60 backdrop-blur-3xl rounded-full p-1.5 md:p-2 border border-white/5 shadow-2xl z-20"
                         >
                           <button
                             onClick={() => handleCopy(msg.text)}
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all"
+                            className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all"
                             title="Copy Full Knowledge"
                           >
-                            <Copy size={16} />
+                            <Copy size={14} />
                           </button>
                           <div className="w-[1px] h-4 bg-white/5" />
                           <button
                             onClick={() => handleShare(msg.text)}
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all"
+                            className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white/30 hover:text-gold-primary hover:bg-gold-primary/10 transition-all"
                             title="Share Insight"
                           >
-                            <Share2 size={16} />
+                            <Share2 size={14} />
                           </button>
                         </motion.div>
                       </div>
@@ -1731,8 +1790,8 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
             </AnimatePresence>
             {isTyping && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
-                <div className="bg-gold-primary/5 border border-gold-primary/20 rounded-[2rem] px-12 py-6 flex gap-6 items-center backdrop-blur-3xl shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
-                  <div className="flex gap-2">
+                <div className="bg-gold-primary/5 border border-gold-primary/20 rounded-[1.5rem] md:rounded-[2rem] px-6 md:px-12 py-3 md:py-6 flex gap-3 md:gap-6 items-center backdrop-blur-3xl shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
+                  <div className="flex gap-1 md:gap-2">
                     {[0, 1, 2].map(i => (
                       <motion.div
                         key={i}
@@ -1742,20 +1801,23 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                           boxShadow: ["0 0 0px #E5C06F", "0 0 15px #E5C06F", "0 0 0px #E5C06F"]
                         }}
                         transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.3, ease: "easeInOut" }}
-                        className="w-3 h-3 bg-gold-primary rounded-full"
+                        className="w-2 h-2 md:w-3 md:h-3 bg-gold-primary rounded-full"
                       />
                     ))}
                   </div>
-                  <span className="text-[13px] font-black text-gold-primary uppercase tracking-[0.5em] font-outfit animate-pulse">
+                  <span className="text-[10px] md:text-[13px] font-black text-gold-primary uppercase tracking-[0.2em] md:tracking-[0.5em] font-outfit animate-pulse truncate max-w-[550px]">
                     {scholarlyStatus}
                   </span>
                 </div>
               </motion.div>
             )}
             <div ref={messagesEndRef} />
+            {/* Elegant Bottom Spacer to clear Input Pill */}
+            <div className="h-[250px] md:h-[250px] w-full pointer-events-none" />
           </div>
+
           {/* Final Floating Input Pill with Suggestions */}
-          <div className="absolute bottom-6 left-0 right-0 px-12 md:px-24 lg:px-32 pointer-events-none">
+          <div className="absolute bottom-2 md:bottom-6 left-0 right-0 px-4 md:px-24 lg:px-32 pointer-events-none z-20">
             <div className="max-w-5xl mx-auto pointer-events-auto">
               {/* Selected File Indicator */}
               <AnimatePresence>
@@ -1764,11 +1826,11 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className="flex items-center gap-3 bg-gold-primary/20 border border-gold-primary/40 rounded-full px-6 py-3 mb-3 w-fit backdrop-blur-3xl"
+                    className="flex items-center gap-3 bg-gold-primary/20 border border-gold-primary/40 rounded-full px-4 md:px-6 py-2 md:py-3 mb-2 md:mb-3 w-fit backdrop-blur-3xl"
                   >
-                    <Paperclip size={14} className="text-gold-primary" />
-                    <span className="text-[11px] font-black text-white/80 uppercase tracking-widest">{selectedFile.name}</span>
-                    <button onClick={() => setSelectedFile(null)} className="text-white/40 hover:text-white"><X size={14} /></button>
+                    <Paperclip size={12} className="text-gold-primary" />
+                    <span className="text-[9px] md:text-[11px] font-black text-white/80 uppercase tracking-widest truncate max-w-[150px]">{selectedFile.name}</span>
+                    <button onClick={() => setSelectedFile(null)} className="text-white/40 hover:text-white"><X size={12} /></button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1780,7 +1842,7 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="flex gap-4 mb-6 overflow-x-auto no-scrollbar pb-2"
+                    className="flex gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto no-scrollbar pb-2 px-2"
                   >
                     {SUGGESTIONS.map((item, idx) => (
                       <motion.button
@@ -1788,9 +1850,9 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                         whileHover={{ scale: 1.05, y: -2 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleSendMessage(item.query)}
-                        className="suggestion-chip flex items-center gap-3 shrink-0"
+                        className="suggestion-chip flex items-center gap-2 md:gap-3 shrink-0 py-2 md:py-3 px-4 md:px-6 text-[10px] md:text-[12px]"
                       >
-                        <item.icon size={16} />
+                        <item.icon size={14} />
                         {item.label}
                       </motion.button>
                     ))}
@@ -1799,11 +1861,11 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
               </AnimatePresence>
 
               <div className={cn(
-                "flex items-center bg-[#011412]/95 backdrop-blur-[80px] rounded-[2.5rem] h-20 px-8 border shadow-[0_60px_120px_rgba(0,0,0,0.8)] gap-6 transition-all group/input",
+                "flex items-center bg-[#011412]/95 backdrop-blur-[80px] rounded-[1.5rem] md:rounded-[2.5rem] h-16 md:h-20 px-4 md:px-8 border shadow-[0_40px_80px_rgba(0,0,0,0.8)] gap-3 md:gap-6 transition-all group/input",
                 isRecording ? "border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.3)]" : "border-white/10 hover:border-gold-primary/30"
               )}>
                 {supportsAttachments && (
-                  <>
+                  <div className="hidden sm:block">
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -1813,20 +1875,20 @@ const IslamicAIAgent = ({ isWidget = false, apiUrl = import.meta.env.VITE_API_BA
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-3 text-white/20 hover:text-gold-primary transition-all group-hover/input:text-white/40"
+                      className="p-2 md:p-3 text-white/20 hover:text-gold-primary transition-all group-hover/input:text-white/40"
                     >
-                      <Paperclip size={22} />
+                      <Paperclip size={20} md:size={22} />
                     </button>
-                  </>
+                  </div>
                 )}
-                <div className="relative flex-1 flex items-center h-full">
-                  {!inputMessage && <PlaceholderRotator />}
+                <div className="relative flex-1 h-full overflow-hidden flex items-center">
+                  {!inputMessage && <div className="pointer-events-none absolute left-0"><PlaceholderRotator /></div>}
                   <input
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
-                    className="w-full bg-transparent border-none outline-none text-xl text-white font-medium z-10"
-                    placeholder={isRecording ? "Listening..." : ""}
+                    className="w-full bg-transparent border-none outline-none text-base md:text-xl text-white font-medium z-10 py-2 placeholder:text-white/20"
+                    placeholder={isRecording ? "Listening..." : (window.innerWidth < 640 ? "Ask Noor..." : "")}
                   />
                 </div>
                 <div className="flex items-center gap-4 border-l border-white/5 pl-6 h-12">
