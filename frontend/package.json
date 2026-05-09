@@ -26,9 +26,9 @@
     "vite-plugin-css-injected-by-js": "^3.5.2"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:widget": "vite build --mode widget",
+    "dev": "node init && vite",
+    "build": "node init && vite build",
+    "build:widget": "node init && vite build --mode widget",
     "preview": "vite preview"
   },
   "eslintConfig": {
